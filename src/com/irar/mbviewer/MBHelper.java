@@ -4,7 +4,6 @@ import java.awt.image.BufferedImage;
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Random;
@@ -107,7 +106,7 @@ public class MBHelper {
 		}
 	}
 	
-	@SuppressWarnings("unused")
+//	@SuppressWarnings("unused")
 	public void getSetP(BufferedImage bi, Palette palette, BigDecimal x, BigDecimal y, SizedDouble zoom, int iterLimit, int oversample, double blur, Complex power, boolean shufflePoints) {
 		Viewer.info.minIter.setText("Rendering...");
 		Viewer.info.maxIter.setText("Radius: " + zoom.toString(3));
@@ -152,7 +151,7 @@ public class MBHelper {
 					lastHelper = this;
 					return;
 				}
-				rPoints.put(r3, rPoint.XN.size());
+				rPoints.put(r3, rPoint.XNc.size());
 				approx = new SeriesApprox(rPoint, zoomMag, points.get(new Random().nextInt(points.size())), power);
 				if(helper != this) {
 					lastHelper = this;
@@ -163,12 +162,12 @@ public class MBHelper {
 					Complex2 gen = patch.rPoint.c.produce();
 					r2 = patch.rPoint;
 					rPoint = new ReferencePoint(gen.x, gen.y, iterLimit, zoomMag, power);
-					rPoints.put(patch.rPoint, rPoint.XN.size());
+					rPoints.put(patch.rPoint, rPoint.XNc.size());
 				}else {
 					r2 = points.get(new Random().nextInt(points.size()));
 					Complex2 gen = r2.c.produce();
 					rPoint = new ReferencePoint(gen.x, gen.y, iterLimit, zoomMag, power);
-					rPoints.put(r2, rPoint.XN.size());
+					rPoints.put(r2, rPoint.XNc.size());
 				}
 				if(helper != this) {
 					lastHelper = this;
@@ -189,7 +188,7 @@ public class MBHelper {
 				int iterations[];
 				if(/*oversample > 1*/true) {
 					if(point.equals(r2)) {
-						iterations = new int[] {rPoint.XN.size()};
+						iterations = new int[] {rPoint.XNc.size()};
 					}else {
 						iterations = getIterOver(width, height, point, rPoint, approx, iterLimit, zoom, zoomMag, oversample, blur, power);
 					}
@@ -227,6 +226,7 @@ public class MBHelper {
 				}
 				setColor(bi, point.x, point.y, color);
 			}
+			rPoint.XN.delete();
 			points.clear();
 			patches.remove(patch);
 			if(patches.isEmpty()) {
@@ -371,8 +371,9 @@ public class MBHelper {
 			deltaN = delta0;
 		}else {
 			Complex3 d03 = new Complex3(delta0);
-			Complex3 deltaN2 = d03.multiply(approx.AN.get(curIter)).add(d03.pow(2).multiply(approx.BN.get(curIter))).add(d03.pow(3).multiply(approx.CN.get(curIter)));
-			deltaN = new Complex(deltaN2);
+//			Complex3 deltaN2 = d03.multiply(approx.AN.get(curIter)).add(d03.pow(2).multiply(approx.BN.get(curIter))).add(d03.pow(3).multiply(approx.CN.get(curIter)));
+			deltaN = delta0.multiply(new Complex(approx.AN.get(curIter))).add(delta0.pow(2).multiply(new Complex(approx.BN.get(curIter)))).add(delta0.pow(3).multiply(new Complex(approx.CN.get(curIter))));
+//			deltaN = new Complex(deltaN2);
 		}
 		double squ = 0;
 		do{
@@ -470,7 +471,7 @@ public class MBHelper {
 
 		public BigDecimal x;
 		public BigDecimal y;
-		public List<Complex2> XN = new ArrayList<>();
+		public C2ArrayList XN = new C2ArrayList();
 		public List<SizedDouble> XNM3 = new ArrayList<>();
 		public List<Double> XNM3Small = new ArrayList<>();
 		public List<Complex3> XNc = new ArrayList<>();
@@ -478,7 +479,7 @@ public class MBHelper {
 		public List<Complex> XNcSmall = new ArrayList<>();
 		public List<Complex> XN2Small = new ArrayList<>();
 		public List<Complex> XPNSmall = new ArrayList<>();
-		public List<Complex2> XPN = new ArrayList<>();
+//		public List<Complex2> XPN = new ArrayList<>();
 
 
 		public ReferencePoint(BigDecimal x, BigDecimal y, int maxIter, int pre, Complex power) {
@@ -487,7 +488,13 @@ public class MBHelper {
 			this.x = x;
 			this.y = y;
 			Complex2 c = new Complex2(x, y, pre);
+			int percent = (0 * 100 / maxIter);
 			for(int i = 0; i < maxIter; i++) {
+				int nPercent = (i * 100 / maxIter);
+				if(percent != nPercent) {
+					percent = nPercent;
+					Viewer.info.minIter.setText("Getting Reference " + percent + "%");
+				}
 				Complex2 cx2 = c.multiply(2);
 				XN.add(c);
 				XNM3.add(new Complex3(c).mag().multiply(0.001));
@@ -497,7 +504,7 @@ public class MBHelper {
 				XNcSmall.add(new Complex(c));
 				XN2Small.add(new Complex(cx2));
 				c = c.pow(power);
-				XPN.add(c);
+//				XPN.add(c);
 				XPNSmall.add(new Complex(c));
 				c = c.add(c0);
 				if(helper != MBHelper.this) {
@@ -529,13 +536,19 @@ public class MBHelper {
 			AN.add(new Complex3(1, 0));
 			BN.add(new Complex3(0, 0));
 			CN.add(new Complex3(0, 0));
+			int percent = -1;
 			if(power.x != 2 || power.y != 0) {
 				return;
 			}
 			for(int i = 1; i < rPoint.XN.size(); i++) {
-				AN.add(AN.get(i - 1).multiply(new Complex3(rPoint.XN.get(i - 1)).multiply(2)).addReal(1));
-				BN.add(BN.get(i - 1).multiply(new Complex3(rPoint.XN.get(i - 1)).multiply(2)).add(AN.get(i - 1).pow(2)));
-				CN.add(CN.get(i - 1).multiply(new Complex3(rPoint.XN.get(i - 1)).multiply(2)).add(AN.get(i - 1).multiply(BN.get(i - 1).multiply(2))));
+				int nPercent = (i * 100 / rPoint.XN.size());
+				if(percent != nPercent) {
+					percent = nPercent;
+					Viewer.info.minIter.setText("Approximating " + percent + "%");
+				}
+				AN.add(AN.get(i - 1).multiply(rPoint.XNc.get(i - 1).multiply(2)).addReal(1));
+				BN.add(BN.get(i - 1).multiply(rPoint.XNc.get(i - 1).multiply(2)).add(AN.get(i - 1).pow(2)));
+				CN.add(CN.get(i - 1).multiply(rPoint.XNc.get(i - 1).multiply(2)).add(AN.get(i - 1).multiply(BN.get(i - 1).multiply(2))));
 				if (((BN.get(i).multiply(deltaPow2)).magSqu().multiply(tol)).compareTo((CN.get(i).multiply(deltaPow3)).magSqu()) < 0) {
 					if (i <= 3) {
 						skipped = 0;
