@@ -1,4 +1,4 @@
-# MBViewer2
+# Mandelbrot Viewer
 
 Second iteration of my mandelbrot viewer.
 
