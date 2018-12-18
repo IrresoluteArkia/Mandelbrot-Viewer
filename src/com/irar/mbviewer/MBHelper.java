@@ -10,12 +10,13 @@ import java.util.Random;
 
 public class MBHelper {
 
+	int[] hist;
 	static final double epsilon2 = 1.9721522630525295e-31;
 	public static MBHelper helper;
 	public static MBHelper lastHelper = null;
 	public ZoomPoint bestPoint = null;
 	public HashMap<ZoomPoint, Integer> rPoints = new HashMap<>();
-	public int[][][] iterations;
+	public Iteration[][][] iterations;
 	
 	public MBHelper() {
 		helper = this;
@@ -24,7 +25,7 @@ public class MBHelper {
 	public void getSet(BufferedImage bi, Palette palette, double x, double y, SizedDouble zoom, int iterLimit, double pow) {
 		int width = bi.getWidth();
 		int height = bi.getHeight();
-		iterations = new int[width][height][];
+		iterations = new Iteration[width][height][];
 		fillIter(-1);
 		SizedDouble scale = zoom.multiply(4.0 / height);
 		for(int i = width / 2 - 1, acti = 0; acti < width + 1; i += ((acti % 2 == 1) ? acti : -acti), acti++) {
@@ -60,9 +61,10 @@ public class MBHelper {
 	}
 
 	private void fillIter(int i) {
-		for(int[][] iter : iterations) {
-			for(int[] iter2 : iter) {
-				Arrays.fill(iter2, -1);
+		for(Iteration[][] iter : iterations) {
+			for(Iteration[] iter2 : iter) {
+				Iteration fillWith = new Iteration(-1, 0);
+				Arrays.fill(iter2, fillWith);
 			}
 		}
 	}
@@ -71,7 +73,7 @@ public class MBHelper {
 		int zoomMag = (int) Math.abs(zoom.size) + 4;
 		int width = bi.getWidth();
 		int height = bi.getHeight();
-		iterations = new int[width][height][];
+		iterations = new Iteration[width][height][];
 		fillIter(-1);
 		SizedDouble scale = zoom.multiply(4.0 / height);
 		for(int i = width / 2 - 1, acti = 0; acti < width + 1; i += ((acti % 2 == 1) ? acti : -acti), acti++) {
@@ -107,18 +109,19 @@ public class MBHelper {
 	}
 	
 //	@SuppressWarnings("unused")
-	public void getSetP(BufferedImage bi, Palette palette, BigDecimal x, BigDecimal y, SizedDouble zoom, int iterLimit, int oversample, double blur, Complex power, boolean shufflePoints) {
+	public void getSetP(BufferedImage bi, Palette palette, BigDecimal x, BigDecimal y, SizedDouble zoom, int iterLimit, int oversample, double blur, Complex power, boolean shufflePoints, boolean doHist) {
 		Viewer.info.minIter.setText("Rendering...");
 		Viewer.info.maxIter.setText("Radius: " + zoom.toString(3));
 		Viewer.info.avgIter.setText("X: " + x.toString());
 		Viewer.info.tTime.setText("Y: " + y.toString());
 		Viewer.window.validate();
 		Viewer.window.pack();
+		hist = new int[iterLimit];
 		long startTime = System.currentTimeMillis();
 		int zoomMag = (int) Math.abs(zoom.size) + 4;
 		int width = bi.getWidth();
 		int height = bi.getHeight();
-		iterations = new int[width][height][oversample];
+		iterations = new Iteration[width][height][oversample];
 		fillIter(-1);
 		List<ZoomPoint> points = getPoints(width, height, zoom, x, y, zoomMag, shufflePoints);
 		if(helper != this) {
@@ -185,21 +188,21 @@ public class MBHelper {
 					lastHelper = this;
 					return;
 				}
-				int iterations[];
+				Iteration[] iterations;
 				if(/*oversample > 1*/true) {
 					if(point.equals(r2)) {
-						iterations = new int[] {rPoint.XNc.size()};
+						iterations = new Iteration[] {new Iteration(rPoint.XNc.size(), 0)};
 					}else {
 						iterations = getIterOver(width, height, point, rPoint, approx, iterLimit, zoom, zoomMag, oversample, blur, power);
 					}
 					int lowest = iterLimit;
-					for(int iteration : iterations) {
-						if(iteration > bestIter) {
+					for(Iteration iteration : iterations) {
+						if(iteration.iterations > bestIter) {
 							bestPoint = point;
-							bestIter = iteration;
+							bestIter = (int) iteration.iterations;
 						}
-						if(iteration < lowest) {
-							lowest = iteration;
+						if(iteration.iterations < lowest) {
+							lowest = (int) iteration.iterations;
 						}
 					}
 					point.itersDone = lowest;
@@ -213,9 +216,9 @@ public class MBHelper {
 				this.iterations[point.x][point.y] = iterations;
 				int[] color = new int[oversample];
 				for(int i = 0; i < iterations.length; i++) {
-					int iterat = iterations[i];
-					if(iterat < iterLimit) {
-						color[i] = palette.paletteloop[iterat % palette.paletteloop.length];
+					Iteration iterat = iterations[i];
+					if(iterat.iterations < iterLimit) {
+						color[i] = getColor(iterat, palette.paletteloop);
 					}
 				}
 				if(point.redo) {
@@ -223,6 +226,9 @@ public class MBHelper {
 					point.redo = false;
 //					setColor(bi, point.x, point.y, new int[] {255 << 16});
 				}else {
+					if(iterations[0].iterations < iterLimit) {
+						hist[iterations[0].iterations]++;
+					}
 				}
 				setColor(bi, point.x, point.y, color);
 			}
@@ -245,6 +251,42 @@ public class MBHelper {
 			}
 //			points.remove(r2);
 		}
+		if(doHist) {
+			int total = 0;
+			for(int i = 0; i < hist.length; i++) {
+				total += hist[i];
+			}
+			double huetrack = 0;
+			double[] hues = new double[hist.length];
+			for(int i = 0; i < hues.length; i++) {
+				huetrack += ((double) hist[i] / total);
+				hues[i] = huetrack;
+			}
+			for(int i = 0; i < iterations.length; i++) {
+				Iteration[][] iter2 = iterations[i];
+				for(int j = 0; j < iter2.length; j++) {
+					Iteration iter = iter2[j][0];
+					if(iter.iterations < iterLimit) {
+						int iters = iter.iterations;
+						if(iter.iterations <= 0) {
+							iters = 1;
+						}
+						double hue = hues[iters - 1];
+/*						for(int k = 0; k < iter.iterations; k++) {
+							hue += (double) hist[k] / total;
+						}*/
+						hue = Math.min(Math.max(hue, 0), 1);
+						int hue2 = (int) (hue * palette.palette.length);
+						double extra = 1;
+						if(iters < iterLimit - 1) {
+							extra = (double) hist[iters] / total;
+						}
+						int[] color = new int[] {getColor(new Iteration(hue2, iter.partial), palette.palette, extra)};
+						setColor(bi, i, j, color);
+					}
+				}
+			}
+		}
 		String info = "Drew Fractal in " + (System.currentTimeMillis() - startTime) + "ms";
 		Viewer.info.minIter.setText(info);
 //		Viewer.window.pack();
@@ -252,6 +294,59 @@ public class MBHelper {
 		Viewer.window.pack();
 		System.out.println(info);
 		lastHelper = this;
+	}
+	
+	private static int getColor(Iteration iterat, int[] colors) {
+		int color1 = colors[iterat.iterations % colors.length];
+		int color2 = colors[(iterat.iterations + 1) % colors.length];
+		int color = interColors(color1, color2, iterat.partial % 1);
+		return color;
+	}
+
+/*	private static int getColor(Iteration iterat, int[] colors, double extra) {
+		int intextra = (int) (extra * colors.length);
+		int itercolor = iterat.iterations;
+		double partial = iterat.partial;
+		if((int) (partial * intextra) > 1) {
+			int add = (int) (partial * intextra);
+			itercolor += add;
+			partial -= (double) add / intextra;
+		}
+		partial = Math.min(Math.max(partial, 0), 1);
+		if(itercolor >= colors.length) {
+			itercolor = colors.length - 2;
+			partial = 0;
+		}
+		int color1 = colors[itercolor % colors.length];
+		int color2 = colors[(itercolor + 1) % colors.length];
+		int color = interColors(color1, color2, partial);
+		return color;
+	}*/
+
+	private static int getColor(Iteration iterat, int[] colors, double extra) {
+		int color1 = colors[iterat.iterations % colors.length];
+		int color2 = colors[(iterat.iterations + (int) (extra * colors.length)) % colors.length];
+		int color = interColors(color1, color2, iterat.partial % 1);
+		return color;
+	}
+
+	static int rm = 0x00ff0000;
+	static int gm = 0x0000ff00;
+	static int bm = 0x000000ff;
+	private static int interColors(int color1, int color2, double fractional) {
+		int red1 = (rm & color1) >> 16;
+		int green1 = (gm & color1) >> 8;
+		int blue1 = (bm & color1);
+		int red2 = (rm & color2) >> 16;
+		int green2 = (gm & color2) >> 8;
+		int blue2 = (bm & color2);
+		int difRed = Math.abs(red1 - red2);
+		int difGreen = Math.abs(green1 - green2);
+		int difBlue = Math.abs(blue1 - blue2);
+		int resRed = (red1 < red2 ? (int) (fractional * difRed) : (int) ((1 - fractional) * difRed)) + Math.min(red1, red2);
+		int resGreen = (green1 < green2 ? (int) (fractional * difGreen) : (int) ((1 - fractional) * difGreen)) + Math.min(green1, green2);
+		int resBlue = (blue1 < blue2 ? (int) (fractional * difBlue) : (int) ((1 - fractional) * difBlue)) + Math.min(blue1, blue2);
+		return (resRed << 16) + (resGreen << 8) + resBlue;
 	}
 	
 	private ZoomPoint getLastBestPoint(BigDecimal x1, BigDecimal x2, BigDecimal y1, BigDecimal y2) {
@@ -299,9 +394,9 @@ public class MBHelper {
 		bi.setRGB(x, y, avg);
 	}
 
-	private int[] getIterOver(int width, int height, ZoomPoint point, ReferencePoint rPoint, SeriesApprox approx,
+	private Iteration[] getIterOver(int width, int height, ZoomPoint point, ReferencePoint rPoint, SeriesApprox approx,
 			int iterLimit, SizedDouble zoom, int zoomMag, int oversampleAmount, double blur, Complex power) {
-		int[] over = new int[oversampleAmount];
+		Iteration[] over = new Iteration[oversampleAmount];
 		for(int i = 0; i < oversampleAmount; i++) {
 			SizedDouble maxDevAmountX = zoom.divide(width);
 			SizedDouble maxDevAmountY = zoom.divide(height);
@@ -314,7 +409,7 @@ public class MBHelper {
 			if(zoom.size < -320) {
 				over[i] = getIterBig(pointI, rPoint, approx, iterLimit, zoomMag, blur);
 			}else {
-				over[i] = getIter(pointI, rPoint, approx, iterLimit, zoomMag, blur, power);
+				over[i] = getIter(pointI, rPoint, approx, iterLimit, zoomMag, blur, power, zoom);
 			}
 			if(pointI.redo) {
 				point.redo = true;
@@ -324,7 +419,7 @@ public class MBHelper {
 		return over;
 	}
 
-	private int getIterBig(ZoomPoint point, ReferencePoint rPoint, SeriesApprox approx, int maxIter, int pre, double blur) {
+	private Iteration getIterBig(ZoomPoint point, ReferencePoint rPoint, SeriesApprox approx, int maxIter, int pre, double blur) {
 		SizedDouble br = new SizedDouble(256);
 		Complex2 genPoint = point.c.produce();
 		Complex2 delta02 = genPoint.subtract(rPoint.XN.get(0));
@@ -358,10 +453,16 @@ public class MBHelper {
 //				squ = (rPoint.XNc.get(curIter).add(deltaN)).magSqu();
 			}
 		}while(curIter < maxIter && squ.compareTo(br) < 0);
-		return curIter;
+		float partial = 0;
+		if ( curIter < maxIter ) {
+		    double log_zn = deltaN.x.multiply(deltaN.x).add(deltaN.y.multiply(deltaN.y)).log() / 2;
+		    double nu = Math.log( log_zn / Math.log(2) ) / Math.log(2);
+		    partial = (float) (1 - nu);
+		}
+		return new Iteration(curIter, partial);
 	}
 
-	private int getIter(ZoomPoint point, ReferencePoint rPoint, SeriesApprox approx, int maxIter, int pre, double blur, Complex power) {
+	private Iteration getIter(ZoomPoint point, ReferencePoint rPoint, SeriesApprox approx, int maxIter, int pre, double blur, Complex power, SizedDouble zoom) {
 		Complex2 genPoint = point.c.produce();
 		Complex2 delta02 = genPoint.subtract(rPoint.XN.get(0));
 		Complex delta0 = new Complex(delta02);
@@ -370,18 +471,24 @@ public class MBHelper {
 		if(curIter == 0) {
 			deltaN = delta0;
 		}else {
-			Complex3 d03 = new Complex3(delta0);
-//			Complex3 deltaN2 = d03.multiply(approx.AN.get(curIter)).add(d03.pow(2).multiply(approx.BN.get(curIter))).add(d03.pow(3).multiply(approx.CN.get(curIter)));
-			deltaN = delta0.multiply(new Complex(approx.AN.get(curIter))).add(delta0.pow(2).multiply(new Complex(approx.BN.get(curIter)))).add(delta0.pow(3).multiply(new Complex(approx.CN.get(curIter))));
-//			deltaN = new Complex(deltaN2);
+			Complex3 d03 = new Complex3(delta02);
+			Complex3 deltaN2 = d03.multiply(approx.AN.get(curIter)).add(d03.pow(2).multiply(approx.BN.get(curIter))).add(d03.pow(3).multiply(approx.CN.get(curIter)));
+//			deltaN = delta0.multiply(new Complex(approx.AN.get(curIter))).add(delta0.pow(2).multiply(new Complex(approx.BN.get(curIter)))).add(delta0.pow(3).multiply(new Complex(approx.CN.get(curIter))));
+			deltaN = new Complex(deltaN2);
 		}
+		double error = zoom.asDouble() / 1000;
 		double squ = 0;
 		do{
 			if(curIter < rPoint.XNcSmall.size()) {
 /*				if(curIter == 0) {
 					deltaN = new Complex(delta02.add(rPoint.XN.get(curIter)).pow(power).subtract(rPoint.XPN.get(curIter)).add(delta02));
 				}*/
-				deltaN = deltaN.multiply(rPoint.XN2Small.get(curIter).add(deltaN)).add(delta0);
+				Complex deltaNtemp = deltaN.multiply(rPoint.XN2Small.get(curIter).add(deltaN)).add(delta0);
+//				if(Math.abs(deltaN.x - deltaNtemp.x) < error && Math.abs(deltaN.y - deltaNtemp.y) < error) {
+/*				if(Double.doubleToLongBits(deltaN.x) == Double.doubleToLongBits(deltaNtemp.x) && Double.doubleToLongBits(deltaN.y) == Double.doubleToLongBits(deltaNtemp.y)) {
+					break;
+				}*/
+				deltaN = deltaNtemp;
 //				deltaN = deltaN.add(rPoint.XNcSmall.get(curIter)).pow(power).subtract(rPoint.XPNSmall.get(curIter)).add(delta0);
 //				deltaN = deltaN.multiply(rPoint.XNcSmall.get(curIter)).pow(power).add(delta0);
 /*				if(blur != 0) {
@@ -400,29 +507,13 @@ public class MBHelper {
 				}
 			}
 		}while(curIter < maxIter && squ < 256);
-/*		do{
-			double deltaNr = deltaN.x;
-			double deltaNi = deltaN.x;
-			if(curIter < rPoint.XNcSmall.size()) {
-				double inter1r = deltaNr + rPoint.XN2Small.get(curIter).x;
-				double inter1i = deltaNi + rPoint.XN2Small.get(curIter).y;
-				double inter2r = deltaNr * inter1r - deltaNi * inter1i + delta0.x;
-				double inter2i = deltaNr * inter1i + deltaNi * inter1r + delta0.y;
-				deltaNr = inter2r;
-				deltaNi = inter2i;
-//				deltaN = deltaN.multiply(rPoint.XN2Small.get(curIter).add(deltaN)).add(delta0);
-			}else if(curIter < maxIter - 2) {
-				point.redo = true;
-				break;
-			}
-			curIter++;
-			if(curIter < rPoint.XNcSmall.size()) {
-				double r1 = rPoint.XNcSmall.get(curIter).x + deltaNr;
-				double i1 = rPoint.XNcSmall.get(curIter).y + deltaNi;
-				squ = r1 * r1 + i1 * i1;
-			}
-		}while(curIter < maxIter && squ < 256 * 256);*/
-		return curIter;
+		float partial = 0;
+		if ( curIter < maxIter ) {
+		    double log_zn = Math.log( /*deltaN.x * deltaN.x + deltaN.y * deltaN.y*/squ ) / 2;
+		    double nu = Math.log( log_zn / Math.log(2) ) / Math.log(2);
+		    partial = (float) (1 - nu);
+		}
+		return new Iteration(curIter, partial);
 	}
 
 	private List<ZoomPoint> getPoints(int width, int height, SizedDouble zoom, BigDecimal x, BigDecimal y, int pre, boolean shuffle) {
@@ -450,21 +541,60 @@ public class MBHelper {
 		return points;
 	}
 
-	public void recolor(BufferedImage bi, Palette palette, int maxIter) {
-		for(int i = 0; i < iterations.length; i++) {
-			for(int j = 0; j < iterations.length; j++) {
-				int[] color = new int[iterations[i][j].length];
-				for(int k = 0; k < iterations[i][j].length; k++) {
-					int iterat = iterations[i][j][k];
-					if(iterat >= 0) {
-						if(iterat < maxIter) {
-							color[k] = palette.paletteloop[iterat % palette.paletteloop.length];
+	public void recolor(BufferedImage bi, Palette palette, int maxIter, boolean doHist) {
+		if(doHist) {
+			int total = 0;
+			for(int i = 0; i < hist.length; i++) {
+				total += hist[i];
+			}
+			double huetrack = 0;
+			double[] hues = new double[hist.length];
+			for(int i = 0; i < hues.length; i++) {
+				huetrack += ((double) hist[i] / total);
+				hues[i] = huetrack;
+			}
+			for(int i = 0; i < iterations.length; i++) {
+				Iteration[][] iter2 = iterations[i];
+				for(int j = 0; j < iterations[i].length; j++) {
+					Iteration iter = iter2[j][0];
+					if(iter.iterations < maxIter) {
+//						double hue = 0;
+						int iters = iter.iterations;
+						if(iter.iterations <= 0) {
+							iters = 1;
 						}
+						double hue = hues[iters - 1];
+/*						for(int k = 0; k < iter.iterations; k++) {
+							hue += (double) hist[k] / total;
+						}*/
+						hue = Math.min(Math.max(hue, 0), 1);
+						int hue2 = (int) (hue * palette.palette.length);
+						double extra = 1;
+						if(iters < maxIter - 1) {
+							extra = (double) hist[iters] / total;
+						}
+						int[] color = new int[] {getColor(new Iteration(hue2, iter.partial), palette.palette, extra)};
+						setColor(bi, i, j, color);
 					}
 				}
-				setColor(bi, i, j, color);
+			}
+		}else {
+			for(int i = 0; i < iterations.length; i++) {
+				for(int j = 0; j < iterations[i].length; j++) {
+					int[] color = new int[iterations[i][j].length];
+					for(int k = 0; k < iterations[i][j].length; k++) {
+						Iteration iterat = iterations[i][j][k];
+						if(iterat.iterations >= 0) {
+							if(iterat.iterations < maxIter) {
+								color[k] = getColor(iterat, palette.paletteloop);
+							}
+						}
+					}
+					setColor(bi, i, j, color);
+				}
 			}
 		}
+
 	}
 	
 	public class ReferencePoint{
@@ -546,9 +676,9 @@ public class MBHelper {
 					percent = nPercent;
 					Viewer.info.minIter.setText("Approximating " + percent + "%");
 				}
-				AN.add(AN.get(i - 1).multiply(rPoint.XNc.get(i - 1).multiply(2)).addReal(1));
-				BN.add(BN.get(i - 1).multiply(rPoint.XNc.get(i - 1).multiply(2)).add(AN.get(i - 1).pow(2)));
-				CN.add(CN.get(i - 1).multiply(rPoint.XNc.get(i - 1).multiply(2)).add(AN.get(i - 1).multiply(BN.get(i - 1).multiply(2))));
+				AN.add(AN.get(i - 1).multiply(rPoint.XN2.get(i - 1)).addReal(1));
+				BN.add(BN.get(i - 1).multiply(rPoint.XN2.get(i - 1)).add(AN.get(i - 1).pow(2)));
+				CN.add(CN.get(i - 1).multiply(rPoint.XN2.get(i - 1)).add(AN.get(i - 1).multiply(BN.get(i - 1).multiply(2))));
 				if (((BN.get(i).multiply(deltaPow2)).magSqu().multiply(tol)).compareTo((CN.get(i).multiply(deltaPow3)).magSqu()) < 0) {
 					if (i <= 3) {
 						skipped = 0;

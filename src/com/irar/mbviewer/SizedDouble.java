@@ -43,18 +43,18 @@ public class SizedDouble {
 		}else {
 			if(size > sd.size) {
 				int dif = size - sd.size;
-				if(dif >= 16) {
+/*				if(dif >= 24) {
 					result = new SizedDouble(d, size);
-				}else {
+				}else {*/
 					result = new SizedDouble(d + sd.d / Math.pow(10, dif), size);
-				}
+//				}
 			}else {
 				int dif = sd.size - size;
-				if(dif >= 16) {
+/*				if(dif >= 24) {
 					result = new SizedDouble(sd.d, sd.size);
-				}else {
+				}else {*/
 					result = new SizedDouble(d / Math.pow(10, dif) + sd.d, sd.size);
-				}
+//				}
 			}
 		}
 		return result;
@@ -195,6 +195,11 @@ public class SizedDouble {
 			}
 		}
 		return new SizedDouble(dPart, sPart);
+	}
+
+	public double log() {
+		// log = log(d) + size*log(10)
+		return Math.log(d) + size * Math.log(10);
 	}
 	
 }

@@ -75,6 +75,16 @@ public class Viewer extends Canvas implements Runnable{
 	public static volatile List<Thread> waitingFR = new ArrayList<>();
 	public static RenderInfo info = new RenderInfo();
 	public static TextField iterField;
+	public static Palette currentPalette;
+	public static boolean hist = false;
+	public static List<Palette> palettes = PaletteSaveHandler.getPaletteData();
+	static {
+		try {
+			currentPalette = palettes.get(0);
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+	}
 	
 
 	public static boolean dragPressed = false;
@@ -163,8 +173,8 @@ public class Viewer extends Canvas implements Runnable{
 			@Override
 			public void actionPerformed(ActionEvent e) {
 				int index = Integer.parseInt(e.getActionCommand());
-				Main.currentPalette = Main.palettes.get(index);
-				MBHelper.helper.recolor(bi, Main.currentPalette, iter);
+				currentPalette = palettes.get(index);
+				MBHelper.helper.recolor(bi, currentPalette, iter, hist);
 			}
 		};
 		
@@ -172,18 +182,18 @@ public class Viewer extends Canvas implements Runnable{
 		JPanel p1 = new JPanel();
 		p1.setLayout(new BoxLayout(p1, BoxLayout.Y_AXIS));
 		p1.add(new JLabel("Palette:"));
-//		JCheckBox hist = new JCheckBox("Histogram", false);
-/*		hist.addActionListener((e) -> {
+		JCheckBox hist = new JCheckBox("Histogram", false);
+		hist.addActionListener((e) -> {
 			if(hist.isSelected()) {
-				Main.hist = true;
+				Viewer.hist = true;
 			}else {
-				Main.hist = false;
+				Viewer.hist = false;
 			}
-			drawFractal(locX, locY, zoom, iter);
+			MBHelper.helper.recolor(bi, currentPalette, iter, Viewer.hist);
 		});
-		p1.add(hist);*/
-		for(int i = 0; i < Main.palettes.size(); i++) {
-			JRadioButton jrb = new JRadioButton(Main.palettes.get(i).name);
+		p1.add(hist);
+		for(int i = 0; i < palettes.size(); i++) {
+			JRadioButton jrb = new JRadioButton(palettes.get(i).name);
 			jrb.setActionCommand(i + "");
 			jrb.addActionListener(a);
 			g1.add(jrb);
@@ -685,7 +695,7 @@ public class Viewer extends Canvas implements Runnable{
 		panel1.add(panel2d);
 		panel1.add(panel2e);
 		panel1.add(period);
-		panel1.add(sp);
+//		panel1.add(sp);
 		panelx.add(new JLabel("Resolution:"));
 		panelx.add(panel1);
 		frame.add(panelx, BorderLayout.CENTER);
@@ -699,7 +709,7 @@ public class Viewer extends Canvas implements Runnable{
 			@Override
 			public void run() {
 //				if(power == (double) 2) {
-					new MBHelper().getSetP(bi, Main.currentPalette, locX, locY, zoom2, iter, oversample, blur, power, shufflePoints);
+					new MBHelper().getSetP(bi, currentPalette, locX, locY, zoom2, iter, oversample, blur, power, shufflePoints, hist);
 /*				}else if(Math.abs(zoom2.size) <= 14) {
 					new MBHelper().getSet(bi, Main.currentPalette, locX.doubleValue(), locY.doubleValue(), zoom2, iter - 1, power);
 				}else {
@@ -855,8 +865,8 @@ public class Viewer extends Canvas implements Runnable{
 				writer.println("zoom:" + zoom);
 				writer.println("iterations:" + iter);
 				writer.println("power:" + power);
-				String pl = "palette:0:" + Main.currentPalette.name + ":" + Main.currentPalette.colorlength + ":" + Main.currentPalette.loop;
-				for(int color : Main.currentPalette.init) {
+				String pl = "palette:0:" + currentPalette.name + ":" + currentPalette.colorlength + ":" + currentPalette.loop;
+				for(int color : currentPalette.init) {
 					pl += ":" + color;
 				}
 				writer.println(pl);
@@ -875,8 +885,8 @@ public class Viewer extends Canvas implements Runnable{
 		data.put("zoom", "" + zoom);
 		data.put("iterations", "" + iter);
 		data.put("power", "" + power);
-		String pl = "0:" + Main.currentPalette.name + ":" + Main.currentPalette.colorlength + ":" + Main.currentPalette.loop;
-		for(int color : Main.currentPalette.init) {
+		String pl = "0:" + currentPalette.name + ":" + currentPalette.colorlength + ":" + currentPalette.loop;
+		for(int color : currentPalette.init) {
 			pl += ":" + color;
 		}
 		data.put("palette", "" + pl);

@@ -30,9 +30,9 @@ public class Palette {
 			palette.add(color);
 			paletteloop.add(color);
 		}
-		if(loop) {
+/*		if(loop) {
 			palette.add(colors[0]);
-		}
+		}*/
 		paletteloop.add(colors[0]);
 		for(int i = 0; i < colorLength; i++) {
 			palette = processPalette(palette);
