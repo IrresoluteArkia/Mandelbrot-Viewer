@@ -62,8 +62,6 @@ public class Viewer extends Canvas implements Runnable{
 	public static int resW = 512;
 	public static int resH = 512;
 	public static Complex power = new Complex(2, 0);
-//	public static int WIDTH = 640 * 2;
-//	public static int HEIGHT = 480 * 2;
 	public static volatile BufferedImage bi = new BufferedImage(WIDTH, HEIGHT, BufferedImage.TYPE_INT_RGB);
 	public static BigDecimal locX;
 	public static BigDecimal locY;
@@ -122,7 +120,6 @@ public class Viewer extends Canvas implements Runnable{
 				zoom = new SizedDouble(1);
 				iter = 256;
 			}
-//			SizedDouble.test();
 		}
 		
 		window = new JFrame("Viewer");
@@ -157,7 +154,6 @@ public class Viewer extends Canvas implements Runnable{
 		try {
 			img = ImageIO.read(url);
 		} catch (IOException e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
 		window.setIconImage(img);
@@ -271,11 +267,6 @@ public class Viewer extends Canvas implements Runnable{
 						SizedDouble fY = new SizedDouble(y).divide(CHEIGHT).multiply(zoom);
 						locX = locX.add(fX.multiply(4).asBigDecimal(locX.scale() + 4));
 						locY = locY.add(fY.multiply(4).asBigDecimal(locY.scale() + 4));
-/*						BufferedImage tempBI = new BufferedImage(CWIDTH, CHEIGHT, BufferedImage.TYPE_INT_RGB);
-						Graphics tg = tempBI.getGraphics();
-						tg.drawImage(bi, difnX, difnY, CWIDTH + difnX, CHEIGHT + difnY, 0, 0, bi.getWidth(), bi.getHeight(), null);
-						Graphics g = bi.getGraphics();
-						g.drawImage(tempBI, 0, 0, null);*/
 						drawFractal(locX, locY, zoom, iter);
 					}
 					return;
@@ -327,48 +318,6 @@ public class Viewer extends Canvas implements Runnable{
 		});
 
 	}
-
-/*	private static void addArrows(JFrame frame) {
-		BorderLayout layout = new BorderLayout();
-		JPanel panel = new JPanel(layout);
-		Button up = new Button("^");
-		up.addActionListener(new ActionListener() {
-			@Override
-			public void actionPerformed(ActionEvent e) {
-				locY = locY.subtract(zoom.divide(20).asBigDecimal());
-				drawFractal(locX, locY, zoom, iter);
-			}
-		});
-		panel.add(up, BorderLayout.NORTH);
-		Button down = new Button("v");
-		down.addActionListener(new ActionListener() {
-			@Override
-			public void actionPerformed(ActionEvent e) {
-				locY = locY.subtract(zoom.divide(20).asBigDecimal());
-				drawFractal(locX, locY, zoom, iter);
-			}
-		});
-		panel.add(down, BorderLayout.SOUTH);
-		Button left = new Button("<");
-		left.addActionListener(new ActionListener() {
-			@Override
-			public void actionPerformed(ActionEvent e) {
-				locY = locY.subtract(zoom.divide(20).asBigDecimal());
-				drawFractal(locX, locY, zoom, iter);
-			}
-		});
-		panel.add(left, BorderLayout.WEST);
-		Button right = new Button(">");
-		right.addActionListener(new ActionListener() {
-			@Override
-			public void actionPerformed(ActionEvent e) {
-				locY = locY.subtract(zoom.divide(20).asBigDecimal());
-				drawFractal(locX, locY, zoom, iter);
-			}
-		});
-		panel.add(right, BorderLayout.EAST);
-		frame.add(panel, BorderLayout.NORTH);
-	}*/
 
 	private static void addIter(JPanel frame) {
 		JPanel panel = new JPanel();
@@ -623,7 +572,6 @@ public class Viewer extends Canvas implements Runnable{
 								break;
 							}
 						}
-//						int per = new MBHelper().getPeriod(locX, locY, zoom, resW, resH);
 						window.validate();
 						window.pack();
 					}
@@ -708,13 +656,7 @@ public class Viewer extends Canvas implements Runnable{
 		thread = new Thread(new Runnable(){
 			@Override
 			public void run() {
-//				if(power == (double) 2) {
-					new MBHelper().getSetP(bi, currentPalette, locX, locY, zoom2, iter, oversample, blur, power, shufflePoints, hist);
-/*				}else if(Math.abs(zoom2.size) <= 14) {
-					new MBHelper().getSet(bi, Main.currentPalette, locX.doubleValue(), locY.doubleValue(), zoom2, iter - 1, power);
-				}else {
-					new MBHelper().getSet(bi, Main.currentPalette, locX, locY, zoom2, iter - 1, power);
-				}*/
+				new MBHelper().getSetP(bi, currentPalette, locX, locY, zoom2, iter, oversample, blur, power, shufflePoints, hist);
 			}
 		});
 		if(current != null) {
@@ -722,17 +664,7 @@ public class Viewer extends Canvas implements Runnable{
 		}
 		thread.start();
 	}
-
-/*	private static void drawFractalE(BigDecimal locX, BigDecimal locY, double zoom, int iter) {
-//		Main.getSet(bi, locX, locY, zoom, iter);
-//		if(Math.abs(Math.log10(zoom)) <= 14) {
-//			Main.getSet(bi, locX.doubleValue(), locY.doubleValue(), zoom, iter);
-//		}else {
-			Main.getSet(bi, locX, locY, zoom, iter - 1);
-//		}
-		System.out.println("Drew Fractal");
-	}*/
-
+	
 	private void start() {
 		new Thread(this).start();
 	}
@@ -812,9 +744,9 @@ public class Viewer extends Canvas implements Runnable{
 			boolean xGreater = (double) difX / CWIDTH > (double) difY / CHEIGHT;
 			g.setColor(new Color(255, 255, 255));
 			if(xGreater) {
-				g.drawRect(pressedX - difX, pressedY - difX, (int) (/*(double) WIDTH / HEIGHT * */difX * 2), (int) ((double) CHEIGHT / CWIDTH * difX * 2));
+				g.drawRect(pressedX - difX, pressedY - difX, (int) (difX * 2), (int) ((double) CHEIGHT / CWIDTH * difX * 2));
 			}else {
-				g.drawRect(pressedX - difY, pressedY - difY, (int) ((double) CWIDTH / CHEIGHT * difY * 2), (int) (/*(double) HEIGHT / WIDTH * */difY * 2));
+				g.drawRect(pressedX - difY, pressedY - difY, (int) ((double) CWIDTH / CHEIGHT * difY * 2), (int) (difY * 2));
 			}
 		}
 		
