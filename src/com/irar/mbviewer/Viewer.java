@@ -39,6 +39,9 @@ import javax.swing.JFileChooser;
 import javax.swing.JFormattedTextField;
 import javax.swing.JFrame;
 import javax.swing.JLabel;
+import javax.swing.JMenu;
+import javax.swing.JMenuBar;
+import javax.swing.JMenuItem;
 import javax.swing.JPanel;
 import javax.swing.JRadioButton;
 import javax.swing.JTextField;
@@ -101,19 +104,7 @@ public class Viewer extends JLabel implements Runnable{
 		}catch(Exception e) {
 			try{
 				File saved = new File(args[0]);
-				if(saved.exists()) {
-					MBInfo info1 = MBInfoGetter.getInfo(saved);
-					if(info1 != null && info1.wasInitialized()) {
-						locX = info1.x;
-						locY = info1.y;
-						zoom = info1.zoom;
-						iter = info1.iterations;
-					}else {
-						throw new Exception();
-					}
-				}else {
-					throw new Exception();
-				}
+				setFile(saved);
 			}catch(Exception e2) {
 				locX = new BigDecimal(0);
 				locY = new BigDecimal(0);
@@ -127,6 +118,7 @@ public class Viewer extends JLabel implements Runnable{
 		
 		window.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 		window.setLayout(new BorderLayout());
+		addMenu(window);
 		window.add(instance, BorderLayout.CENTER);
 		JPanel panel2 = new JPanel(new BorderLayout());
 		addSave(panel2);
@@ -161,6 +153,35 @@ public class Viewer extends JLabel implements Runnable{
 		
 		initialized = true;
 		drawFractal(locX, locY, zoom, iter);
+	}
+	
+	private static void setFile(File file) {
+		if(file.exists()) {
+			MBInfo info1 = MBInfoGetter.getInfo(file);
+			if(info1 != null && info1.wasInitialized()) {
+				locX = info1.x;
+				locY = info1.y;
+				zoom = info1.zoom;
+				iter = info1.iterations;
+				if(iterField != null) {
+					iterField.setText("" + iter);
+				}
+			}
+		}
+	}
+
+	private static void addMenu(JFrame window) {
+		JMenuBar menuBar = new JMenuBar();
+		JMenu fileMenu = new JMenu("File");
+		
+		JMenuItem openFile = new JMenuItem("Open");
+		openFile.addActionListener(new OpenF());
+		
+		fileMenu.add(openFile);
+		
+		menuBar.add(fileMenu);
+		
+		window.setJMenuBar(menuBar);
 	}
 
 	private static void addRadio(JPanel panel) {
@@ -851,6 +872,43 @@ public class Viewer extends JLabel implements Runnable{
 					c.setSelectedFile(new File(c.getSelectedFile().getPath() + ".png"));
 					saveFile(c.getSelectedFile());
 				}
+			}
+			if (rVal == JFileChooser.CANCEL_OPTION) {}
+		}
+
+		private void saveFile(File selectedFile) {
+			try {
+				ImageIO.write(bi, "png", selectedFile);
+			} catch (IOException e) {
+				e.printStackTrace();
+			}
+		}
+	}
+	static class OpenF implements ActionListener {
+		public void actionPerformed(ActionEvent e) {
+			JFileChooser c = new JFileChooser();
+			FileNameExtensionFilter txtFilter = new FileNameExtensionFilter("IrresoluteArkia Mandelbrot Zoom Data (*.iaz)", "iaz");
+	        c.addChoosableFileFilter(txtFilter);
+	        c.setFileFilter(txtFilter);
+			File theDir = new File("export");
+			if (!theDir.exists()) {
+			    System.out.println("creating directory: " + theDir.getName());
+			    boolean result = false;
+			    try{
+			        theDir.mkdir();
+			        result = true;
+			    } 
+			    catch(SecurityException se){
+			    }        
+			    if(result) {    
+			        System.out.println("DIR created");  
+			    }
+			}
+			c.setCurrentDirectory(theDir);
+			int rVal = c.showOpenDialog(window);
+			if (rVal == JFileChooser.APPROVE_OPTION) {
+				setFile(c.getSelectedFile());
+				drawFractal(locX, locY, zoom, iter);
 			}
 			if (rVal == JFileChooser.CANCEL_OPTION) {}
 		}
