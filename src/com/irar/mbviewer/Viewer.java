@@ -46,7 +46,7 @@ import javax.swing.filechooser.FileNameExtensionFilter;
 
 
 
-public class Viewer extends Canvas implements Runnable{
+public class Viewer extends JLabel implements Runnable{
 
 	/**
 	 * 
@@ -715,15 +715,12 @@ public class Viewer extends Canvas implements Runnable{
 	}
 
 	private void render() {
-		BufferStrategy bs = getBufferStrategy();
-		if (bs == null) {
-			createBufferStrategy(2);
-			requestFocus();
-			return;
-		}
-
-		Graphics g = bs.getDrawGraphics();
-
+		this.repaint();
+	}
+	
+	@Override
+	public void paint(Graphics g) {
+		super.paint(g);
 		g.clearRect(0, 0, CWIDTH, CHEIGHT);
 		
 		if(dragPressed) {
@@ -751,7 +748,6 @@ public class Viewer extends Canvas implements Runnable{
 		}
 		
 		g.dispose();
-		bs.show();
 	}
 	
 	static class SaveL implements ActionListener {
