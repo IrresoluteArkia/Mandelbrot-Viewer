@@ -35,6 +35,7 @@ import javax.imageio.ImageIO;
 import javax.swing.BoxLayout;
 import javax.swing.ButtonGroup;
 import javax.swing.JCheckBox;
+import javax.swing.JCheckBoxMenuItem;
 import javax.swing.JFileChooser;
 import javax.swing.JFormattedTextField;
 import javax.swing.JFrame;
@@ -126,7 +127,6 @@ public class Viewer extends JLabel implements Runnable{
 		JPanel panel1 = new JPanel(new BorderLayout());
 		addIter(panel1);
 		addRes(panel1);
-		addRadio(panel1);
 		window.add(panel1, BorderLayout.EAST);
 		window.pack();
 		window.setResizable(false);
@@ -173,53 +173,52 @@ public class Viewer extends JLabel implements Runnable{
 	private static void addMenu(JFrame window) {
 		JMenuBar menuBar = new JMenuBar();
 		JMenu fileMenu = new JMenu("File");
+		JMenu paletteMenu = new JMenu("Palette");
 		
 		JMenuItem openFile = new JMenuItem("Open");
 		openFile.addActionListener(new OpenF());
 		
-		fileMenu.add(openFile);
-		
-		menuBar.add(fileMenu);
-		
-		window.setJMenuBar(menuBar);
-	}
-
-	private static void addRadio(JPanel panel) {
-		List<JRadioButton> jrbs = new ArrayList<>();
-		ActionListener a = new ActionListener() {
-			@Override
-			public void actionPerformed(ActionEvent e) {
-				int index = Integer.parseInt(e.getActionCommand());
-				currentPalette = palettes.get(index);
-				MBHelper.helper.recolor(bi, currentPalette, iter, hist);
-			}
-		};
-		
-		ButtonGroup g1 = new ButtonGroup();
-		JPanel p1 = new JPanel();
-		p1.setLayout(new BoxLayout(p1, BoxLayout.Y_AXIS));
-		p1.add(new JLabel("Palette:"));
-		JCheckBox hist = new JCheckBox("Histogram", false);
-		hist.addActionListener((e) -> {
-			if(hist.isSelected()) {
+		List<JCheckBoxMenuItem> pButtons = new ArrayList<>();
+		JCheckBoxMenuItem histB = new JCheckBoxMenuItem("Histogram", false);
+		histB.addActionListener((e) -> {
+			if(histB.isSelected()) {
 				Viewer.hist = true;
 			}else {
 				Viewer.hist = false;
 			}
 			MBHelper.helper.recolor(bi, currentPalette, iter, Viewer.hist);
 		});
-		p1.add(hist);
+		paletteMenu.add(histB);
+		paletteMenu.addSeparator();
+		ActionListener a = new ActionListener() {
+			@Override
+			public void actionPerformed(ActionEvent e) {
+				int index = Integer.parseInt(e.getActionCommand());
+				for(int i = 0; i < pButtons.size(); i++) {
+					if(i == index) {
+						pButtons.get(i).setSelected(true);
+					}else {
+						pButtons.get(i).setSelected(false);
+					}
+				}
+				currentPalette = palettes.get(index);
+				MBHelper.helper.recolor(bi, currentPalette, iter, hist);
+			}
+		};
 		for(int i = 0; i < palettes.size(); i++) {
-			JRadioButton jrb = new JRadioButton(palettes.get(i).name);
-			jrb.setActionCommand(i + "");
-			jrb.addActionListener(a);
-			g1.add(jrb);
-			p1.add(jrb);
-			jrbs.add(jrb);
+			JCheckBoxMenuItem pb = new JCheckBoxMenuItem(palettes.get(i).name);
+			pb.setActionCommand(i + "");
+			pb.addActionListener(a);
+			paletteMenu.add(pb);
+			pButtons.add(pb);
 		}
-		jrbs.get(0).setSelected(true);
 		
-		panel.add(p1, BorderLayout.EAST);
+		fileMenu.add(openFile);
+		
+		menuBar.add(fileMenu);
+		menuBar.add(paletteMenu);
+		
+		window.setJMenuBar(menuBar);
 	}
 
 	private static void addSave(JPanel panel) {
