@@ -122,7 +122,6 @@ public class Viewer extends JLabel implements Runnable{
 		addMenu(window);
 		window.add(instance, BorderLayout.CENTER);
 		JPanel panel2 = new JPanel(new BorderLayout());
-		addSave(panel2);
 		window.add(panel2, BorderLayout.SOUTH);
 		JPanel panel1 = new JPanel(new BorderLayout());
 		addIter(panel1);
@@ -178,6 +177,11 @@ public class Viewer extends JLabel implements Runnable{
 		JMenuItem openFile = new JMenuItem("Open");
 		openFile.addActionListener(new OpenF());
 		
+		JMenuItem saveLoc = new JMenuItem("Save Location");
+		JMenuItem saveImage = new JMenuItem("Save Image");
+		saveLoc.addActionListener(new SaveL());
+		saveImage.addActionListener(new SaveP());
+		
 		List<JCheckBoxMenuItem> pButtons = new ArrayList<>();
 		JCheckBoxMenuItem histB = new JCheckBoxMenuItem("Histogram", false);
 		histB.addActionListener((e) -> {
@@ -214,20 +218,13 @@ public class Viewer extends JLabel implements Runnable{
 		}
 		
 		fileMenu.add(openFile);
+		fileMenu.add(saveLoc);
+		fileMenu.add(saveImage);
 		
 		menuBar.add(fileMenu);
 		menuBar.add(paletteMenu);
 		
 		window.setJMenuBar(menuBar);
-	}
-
-	private static void addSave(JPanel panel) {
-		Button save = new Button("Save To .iaz");
-		save.addActionListener(new SaveL());
-		Button savep = new Button("Save To .png");
-		savep.addActionListener(new SaveP());
-		panel.add(save, BorderLayout.NORTH);
-		panel.add(savep, BorderLayout.SOUTH);
 	}
 
 	private static void addML(Viewer canvas) {
