@@ -6,6 +6,7 @@ import java.io.FileReader;
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 
 public class MBInfoGetter {
@@ -42,16 +43,16 @@ public class MBInfoGetter {
 			while(reader.ready()) {
 				lines.add(reader.readLine());
 			}
-			if(containsInfo(lines)) {
-				BigDecimal x = getX(lines);
-				BigDecimal y = getY(lines);
-				SizedDouble zoom = getZoom(lines);
-				int iterations = getIterations(lines);
-				Palette p = getPalette(lines);
-				String output = file.getName().replaceAll(".iaz", "");
-				reader.close();
-				return new MBInfo().setX(x).setY(y).setZoom(zoom).setIterations(iterations - 1).setOutput(output).setPalette(p);
+			HashMap<String, String> data = new HashMap<>(); 
+			for(String line : lines) {
+				String[] keyvalue = line.split(":", 2);
+				if(keyvalue.length == 2) {
+					data.put(keyvalue[0], keyvalue[1]);
+				}
 			}
+			MBInfo info = MBInfo.withData(data);
+			reader.close();
+			return info;
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
