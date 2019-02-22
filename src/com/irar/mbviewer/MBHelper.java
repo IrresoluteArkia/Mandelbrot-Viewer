@@ -22,44 +22,6 @@ public class MBHelper {
 		helper = this;
 	}
 	
-	public void getSet(BufferedImage bi, Palette palette, double x, double y, SizedDouble zoom, int iterLimit, double pow) {
-		int width = bi.getWidth();
-		int height = bi.getHeight();
-		iterations = new Iteration[width][height][];
-		fillIter(-1);
-		SizedDouble scale = zoom.multiply(4.0 / height);
-		for(int i = width / 2 - 1, acti = 0; acti < width + 1; i += ((acti % 2 == 1) ? acti : -acti), acti++) {
-			if(acti == 1) {
-				continue;
-			}
-			for(int j = 0; j < height; j++) {
-				Complex c0 = new Complex(scale.multiply(i - width / 2).add(x).asDouble(), scale.multiply(j - height / 2).add(y).asDouble());
-				Complex c = c0.addReal(0);
-				int curIter = 0;
-				double mag = c.magSqu();
-				while(mag < 10000 && curIter < iterLimit) {
-					c = c.pow(pow).add(c0);
-					
-					mag = c.magSqu();
-					curIter++;
-					if(!this.equals(helper)) {
-						return;
-					}
-					if(c.equals(c0)) {
-						curIter = iterLimit;
-						break;
-					}
-				}
-//				iterations[i][j] = curIter;
-				int color = 0;
-				if(curIter < iterLimit) {
-					color = palette.paletteloop[curIter % palette.paletteloop.length];
-				}
-				bi.setRGB(i, j, color);
-			}
-		}
-	}
-
 	private void fillIter(int i) {
 		for(Iteration[][] iter : iterations) {
 			for(Iteration[] iter2 : iter) {
@@ -69,46 +31,6 @@ public class MBHelper {
 		}
 	}
 
-	public void getSet(BufferedImage bi, Palette palette, BigDecimal x, BigDecimal y, SizedDouble zoom, int iterLimit, double pow) {
-		int zoomMag = (int) Math.abs(zoom.size) + 4;
-		int width = bi.getWidth();
-		int height = bi.getHeight();
-		iterations = new Iteration[width][height][];
-		fillIter(-1);
-		SizedDouble scale = zoom.multiply(4.0 / height);
-		for(int i = width / 2 - 1, acti = 0; acti < width + 1; i += ((acti % 2 == 1) ? acti : -acti), acti++) {
-			if(acti == 1) {
-				continue;
-			}
-			for(int j = 0; j < height; j++) {
-				Complex2 c0 = new Complex2(scale.multiply(i - width / 2).asBigDecimal(zoomMag).add(x), scale.multiply(j - height / 2).asBigDecimal(zoomMag).add(y), zoomMag);
-				Complex2 c = c0.addReal(0);
-				int curIter = 0;
-				double mag = c.magSqu();
-				while(mag < 10000 && curIter < iterLimit) {
-					c = c.pow(pow).add(c0);
-					
-					mag = c.magSqu();
-					curIter++;
-					if(!this.equals(helper)) {
-						return;
-					}
-					if(c.equals(c0)) {
-						curIter = iterLimit;
-						break;
-					}
-				}
-//				iterations[i][j] = curIter;
-				int color = 0;
-				if(curIter < iterLimit) {
-					color = palette.paletteloop[curIter % palette.paletteloop.length];
-				}
-				bi.setRGB(i, j, color);
-			}
-		}
-	}
-	
-//	@SuppressWarnings("unused")
 	public void getSetP(BufferedImage bi, MBInfo info) {
 		final SizedDouble zoom = info.getZoom();
 		final BigDecimal x = info.getX();
