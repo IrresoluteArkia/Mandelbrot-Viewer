@@ -56,7 +56,6 @@ public class Viewer extends JLabel implements Runnable{
 	 * 
 	 */
 	private static final long serialVersionUID = 1L;
-	public static int iter = 256;
 	public static JFrame window;
 	public static Viewer instance = new Viewer();
 	public static int CWIDTH = 512;
@@ -65,24 +64,20 @@ public class Viewer extends JLabel implements Runnable{
 	public static int HEIGHT = 512;
 	public static int resW = 512;
 	public static int resH = 512;
-	public static Complex power = new Complex(2, 0);
 	public static volatile BufferedImage bi = new BufferedImage(WIDTH, HEIGHT, BufferedImage.TYPE_INT_RGB);
-	public static BigDecimal locX;
-	public static BigDecimal locY;
-	public static SizedDouble zoom;
+	public static MBInfo info = new MBInfo();
 	public static boolean mousePressed = false;
 	public static int pressedX = 0;
 	public static int pressedY = 0;
 	public static volatile Thread current = null;
 	public static volatile List<Thread> waitingFR = new ArrayList<>();
-	public static RenderInfo info = new RenderInfo();
+	public static RenderInfo renderInfo = new RenderInfo();
 	public static TextField iterField;
-	public static Palette currentPalette;
 	public static boolean hist = false;
 	public static List<Palette> palettes = PaletteSaveHandler.getPaletteData();
 	static {
 		try {
-			currentPalette = palettes.get(0);
+			info.setPalette(palettes.get(0));
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
@@ -96,22 +91,17 @@ public class Viewer extends JLabel implements Runnable{
 
 	public static void main(String[] args) {
 		try {
-			locX = new BigDecimal(args[0]);
-			locY = new BigDecimal(args[1]);
-			zoom = SizedDouble.parseSizedDouble(args[2]);
+			info.setX(new BigDecimal(args[0]));
+			info.setY(new BigDecimal(args[1]));
+			info.setZoom(SizedDouble.parseSizedDouble(args[2]));
 			if(args.length == 4) {
-				iter = Integer.parseInt(args[3]);
+				info.setIterations(Integer.parseInt(args[3]));
 			}
 		}catch(Exception e) {
 			try{
 				File saved = new File(args[0]);
 				setFile(saved);
-			}catch(Exception e2) {
-				locX = new BigDecimal(0);
-				locY = new BigDecimal(0);
-				zoom = new SizedDouble(1);
-				iter = 256;
-			}
+			}catch(Exception e2) {}
 		}
 		
 		window = new JFrame("Viewer");
@@ -151,19 +141,16 @@ public class Viewer extends JLabel implements Runnable{
 		instance.start();
 		
 		initialized = true;
-		drawFractal(locX, locY, zoom, iter);
+		drawFractal(info);
 	}
 	
 	private static void setFile(File file) {
 		if(file.exists()) {
 			MBInfo info1 = MBInfoGetter.getInfo(file);
 			if(info1 != null && info1.wasInitialized()) {
-				locX = info1.x;
-				locY = info1.y;
-				zoom = info1.zoom;
-				iter = info1.iterations;
+				info = info1;
 				if(iterField != null) {
-					iterField.setText("" + iter);
+					iterField.setText("" + info.getIterations());
 				}
 			}
 		}
@@ -190,7 +177,7 @@ public class Viewer extends JLabel implements Runnable{
 			}else {
 				Viewer.hist = false;
 			}
-			MBHelper.helper.recolor(bi, currentPalette, iter, Viewer.hist);
+			MBHelper.helper.recolor(bi, info.getPalette(), info.getIterations(), Viewer.hist);
 		});
 		paletteMenu.add(histB);
 		paletteMenu.addSeparator();
@@ -205,8 +192,8 @@ public class Viewer extends JLabel implements Runnable{
 						pButtons.get(i).setSelected(false);
 					}
 				}
-				currentPalette = palettes.get(index);
-				MBHelper.helper.recolor(bi, currentPalette, iter, hist);
+				info.setPalette(palettes.get(index));
+				MBHelper.helper.recolor(bi, info.getPalette(), info.getIterations(), hist);
 			}
 		};
 		for(int i = 0; i < palettes.size(); i++) {
@@ -235,11 +222,11 @@ public class Viewer extends JLabel implements Runnable{
 				if(e.getButton() == 3) {
 					int x = e.getX() - CWIDTH / 2;
 					int y = e.getY() - CHEIGHT / 2;
-					SizedDouble fX = new SizedDouble(x).divide(CWIDTH).multiply(zoom);
-					SizedDouble fY = new SizedDouble(y).divide(CHEIGHT).multiply(zoom);
-					locX = locX.add(fX.multiply(4).asBigDecimal(locX.scale() + 4));
-					locY = locY.add(fY.multiply(4).asBigDecimal(locY.scale() + 4));
-					zoom = zoom.multiply(2);
+					SizedDouble fX = new SizedDouble(x).divide(CWIDTH).multiply(info.getZoom());
+					SizedDouble fY = new SizedDouble(y).divide(CHEIGHT).multiply(info.getZoom());
+					info.setX(info.getX().add(fX.multiply(4).asBigDecimal(info.getX().scale() + 4)));
+					info.setY(info.getY().add(fY.multiply(4).asBigDecimal(info.getY().scale() + 4)));
+					info.setZoom(info.getZoom().multiply(2));
 					BufferedImage tempBI = new BufferedImage(bi.getWidth(), bi.getHeight(), BufferedImage.TYPE_INT_RGB);
 					Graphics tg = tempBI.getGraphics();
 					tg.drawImage(bi, 0, 0, null);
@@ -248,7 +235,7 @@ public class Viewer extends JLabel implements Runnable{
 					int ex = e.getX();
 					int ey = e.getY();
 					g.drawImage(tempBI, WIDTH / 2 - ex / 2, HEIGHT / 2 - ey / 2, WIDTH - ex / 2, HEIGHT - ey / 2, 0, 0, tempBI.getWidth(), tempBI.getHeight(), null);
-					drawFractal(locX, locY, zoom, iter);
+					drawFractal(info);
 				}
 			}
 
@@ -280,11 +267,11 @@ public class Viewer extends JLabel implements Runnable{
 						difnY = relY - CHEIGHT / 2;
 						int x = difnX;
 						int y = difnY;
-						SizedDouble fX = new SizedDouble(x).divide(CWIDTH).multiply(zoom);
-						SizedDouble fY = new SizedDouble(y).divide(CHEIGHT).multiply(zoom);
-						locX = locX.add(fX.multiply(4).asBigDecimal(locX.scale() + 4));
-						locY = locY.add(fY.multiply(4).asBigDecimal(locY.scale() + 4));
-						drawFractal(locX, locY, zoom, iter);
+						SizedDouble fX = new SizedDouble(x).divide(CWIDTH).multiply(info.getZoom());
+						SizedDouble fY = new SizedDouble(y).divide(CHEIGHT).multiply(info.getZoom());
+						info.setX(info.getX().add(fX.multiply(4).asBigDecimal(info.getX().scale() + 4)));
+						info.setY(info.getY().add(fY.multiply(4).asBigDecimal(info.getY().scale() + 4)));
+						drawFractal(info);
 					}
 					return;
 				}
@@ -292,14 +279,14 @@ public class Viewer extends JLabel implements Runnable{
 				if(e.getButton() == 1) {
 					int x = pressedX - CWIDTH / 2;
 					int y = pressedY - CHEIGHT / 2;
-					SizedDouble fX = new SizedDouble(x).divide(CWIDTH).multiply(zoom);
-					SizedDouble fY = new SizedDouble(y).divide(CHEIGHT).multiply(zoom);
-					locX = locX.add(fX.multiply(4).asBigDecimal(locX.scale() + 4));
-					locY = locY.add(fY.multiply(4).asBigDecimal(locY.scale() + 4));
+					SizedDouble fX = new SizedDouble(x).divide(CWIDTH).multiply(info.getZoom());
+					SizedDouble fY = new SizedDouble(y).divide(CHEIGHT).multiply(info.getZoom());
+					info.setX(info.getX().add(fX.multiply(4).asBigDecimal(info.getX().scale() + 4)));
+					info.setY(info.getY().add(fY.multiply(4).asBigDecimal(info.getY().scale() + 4)));
 					if(xGreater) {
-						zoom = zoom.multiply((double) difX * 2 / CWIDTH);
+						info.setZoom(info.getZoom().multiply((double) difX * 2 / CWIDTH));
 					}else {
-						zoom = zoom.multiply((double) difY * 2 / CHEIGHT);
+						info.setZoom(info.getZoom().multiply((double) difY * 2 / CHEIGHT));
 					}
 					mousePressed = false;
 					BufferedImage tempBI = new BufferedImage(bi.getWidth(), bi.getHeight(), BufferedImage.TYPE_INT_RGB);
@@ -312,22 +299,22 @@ public class Viewer extends JLabel implements Runnable{
 					}else {
 						g.drawImage(tempBI, 0, 0, WIDTH, HEIGHT, pressedX - difY, pressedY - difY, pressedX + difY, pressedY + difY, null);
 					}
-					drawFractal(locX, locY, zoom, iter);
+					drawFractal(info);
 				}
 				if(e.getButton() == 2) {
 					int x = -difnX;
 					int y = -difnY;
-					SizedDouble fX = new SizedDouble(x).divide(CWIDTH).multiply(zoom);
-					SizedDouble fY = new SizedDouble(y).divide(CHEIGHT).multiply(zoom);
-					locX = locX.add(fX.multiply(4).asBigDecimal(locX.scale() + 4));
-					locY = locY.add(fY.multiply(4).asBigDecimal(locY.scale() + 4));
+					SizedDouble fX = new SizedDouble(x).divide(CWIDTH).multiply(info.getZoom());
+					SizedDouble fY = new SizedDouble(y).divide(CHEIGHT).multiply(info.getZoom());
+					info.setX(info.getX().add(fX.multiply(4).asBigDecimal(info.getX().scale() + 4)));
+					info.setY(info.getY().add(fY.multiply(4).asBigDecimal(info.getY().scale() + 4)));
 					dragPressed = false;
 					BufferedImage tempBI = new BufferedImage(CWIDTH, CHEIGHT, BufferedImage.TYPE_INT_RGB);
 					Graphics tg = tempBI.getGraphics();
 					tg.drawImage(bi, difnX, difnY, CWIDTH + difnX, CHEIGHT + difnY, 0, 0, bi.getWidth(), bi.getHeight(), null);
 					Graphics g = bi.getGraphics();
 					g.drawImage(tempBI, 0, 0, null);
-					drawFractal(locX, locY, zoom, iter);
+					drawFractal(info);
 				}
 			}
 			public void mouseEntered(MouseEvent e) {}
@@ -342,23 +329,23 @@ public class Viewer extends JLabel implements Runnable{
 		JPanel panela = new JPanel();
 		panela.setLayout(new BoxLayout(panela, BoxLayout.X_AXIS));
 		Button up = new Button("x2");
-		iterField = new TextField(iter + "");
+		iterField = new TextField(info.getIterations() + "");
 		iterField.setColumns(6);
 		up.addActionListener(new ActionListener() {
 			@Override
 			public void actionPerformed(ActionEvent e) {
-				iter = Math.max(32, iter * 2);
-				iterField.setText("" + iter);
-				drawFractal(locX, locY, zoom, iter);
+				info.setIterations(Math.max(32, info.getIterations() * 2));
+				iterField.setText("" + info.getIterations());
+				drawFractal(info);
 			}
 		});
 		Button down = new Button("/2");
 		down.addActionListener(new ActionListener() {
 			@Override
 			public void actionPerformed(ActionEvent e) {
-				iter = Math.max(32, iter / 2);
-				iterField.setText("" + iter);
-				drawFractal(locX, locY, zoom, iter);
+				info.setIterations(Math.max(32, info.getIterations() / 2));
+				iterField.setText("" + info.getIterations());
+				drawFractal(info);
 			}
 		});
 		
@@ -371,7 +358,7 @@ public class Viewer extends JLabel implements Runnable{
 		panela.add(up);
 		panel.add(new JLabel("Iterations:"));
 		panel.add(panela);
-		info.addToPanel(panel);
+		renderInfo.addToPanel(panel);
 		frame.add(panel, BorderLayout.WEST);
 	}
 	static JCheckBox sp;
@@ -416,7 +403,7 @@ public class Viewer extends JLabel implements Runnable{
 				bi.getGraphics().drawImage(Viewer.bi, 0, 0, resW, resH, 0, 0, Viewer.bi.getWidth(), Viewer.bi.getHeight(), null);
 				Viewer.bi = bi;
 				field.setText(resW + " x " + resH);
-				drawFractal(locX, locY, zoom, iter);
+				drawFractal(info);
 			}
 		});
 		Button down = new Button("/2");
@@ -429,7 +416,7 @@ public class Viewer extends JLabel implements Runnable{
 				bi.getGraphics().drawImage(Viewer.bi, 0, 0, resW, resH, 0, 0, Viewer.bi.getWidth(), Viewer.bi.getHeight(), null);
 				Viewer.bi = bi;
 				field.setText(resW + " x " + resH);
-				drawFractal(locX, locY, zoom, iter);
+				drawFractal(info);
 			}
 		});
 		Button left = new Button("x2");
@@ -442,7 +429,7 @@ public class Viewer extends JLabel implements Runnable{
 				bi.getGraphics().drawImage(Viewer.bi, 0, 0, resW, resH, 0, 0, Viewer.bi.getWidth(), Viewer.bi.getHeight(), null);
 				Viewer.bi = bi;
 				field.setText(resW + " x " + resH);
-				drawFractal(locX, locY, zoom, iter);
+				drawFractal(info);
 			}
 		});
 		Button right = new Button("/2");
@@ -455,7 +442,7 @@ public class Viewer extends JLabel implements Runnable{
 				bi.getGraphics().drawImage(Viewer.bi, 0, 0, resW, resH, 0, 0, Viewer.bi.getWidth(), Viewer.bi.getHeight(), null);
 				Viewer.bi = bi;
 				field.setText(resW + " x " + resH);
-				drawFractal(locX, locY, zoom, iter);
+				drawFractal(info);
 			}
 		});
 		Button dfault = new Button("Default Resolution");
@@ -470,7 +457,7 @@ public class Viewer extends JLabel implements Runnable{
 				bi.getGraphics().drawImage(Viewer.bi, 0, 0, resW, resH, 0, 0, Viewer.bi.getWidth(), Viewer.bi.getHeight(), null);
 				Viewer.bi = bi;
 				field.setText(resW + " x " + resH);
-				drawFractal(locX, locY, zoom, iter);
+				drawFractal(info);
 			}
 		});
 		Button res = new Button("Screen Resolution");
@@ -485,7 +472,7 @@ public class Viewer extends JLabel implements Runnable{
 				bi.getGraphics().drawImage(Viewer.bi, 0, 0, resW, resH, 0, 0, Viewer.bi.getWidth(), Viewer.bi.getHeight(), null);
 				Viewer.bi = bi;
 				field.setText(resW + " x " + resH);
-				drawFractal(locX, locY, zoom, iter);
+				drawFractal(info);
 			}
 		});
 		Button k4 = new Button("4k");
@@ -500,7 +487,7 @@ public class Viewer extends JLabel implements Runnable{
 				bi.getGraphics().drawImage(Viewer.bi, 0, 0, resW, resH, 0, 0, Viewer.bi.getWidth(), Viewer.bi.getHeight(), null);
 				Viewer.bi = bi;
 				field.setText(resW + " x " + resH);
-				drawFractal(locX, locY, zoom, iter);
+				drawFractal(info);
 			}
 		});
 		JTextField width = new JTextField();
@@ -521,7 +508,7 @@ public class Viewer extends JLabel implements Runnable{
 				bi.getGraphics().drawImage(Viewer.bi, 0, 0, resW, resH, 0, 0, Viewer.bi.getWidth(), Viewer.bi.getHeight(), null);
 				Viewer.bi = bi;
 				field.setText(resW + " x " + resH);
-				drawFractal(locX, locY, zoom, iter);
+				drawFractal(info);
 			}
 		});
 		Button custom2 = new Button("Set Power:");
@@ -530,8 +517,8 @@ public class Viewer extends JLabel implements Runnable{
 			public void actionPerformed(ActionEvent e) {
 				double x = Double.parseDouble(field2.getText());
 				double y = Double.parseDouble(field2b.getText());
-				power = new Complex(x, y);
-				drawFractal(locX, locY, zoom, iter);
+				info.setPower(new Complex(x, y));
+				drawFractal(info);
 			}
 		});
 		
@@ -540,7 +527,7 @@ public class Viewer extends JLabel implements Runnable{
 			@Override
 			public void actionPerformed(ActionEvent e) {
 				oversample = Integer.parseInt(field3.getText());
-				drawFractal(locX, locY, zoom, iter);
+				drawFractal(info);
 			}
 		});
 		
@@ -549,7 +536,7 @@ public class Viewer extends JLabel implements Runnable{
 			@Override
 			public void actionPerformed(ActionEvent e) {
 				blur = Double.parseDouble(field4.getText());
-				drawFractal(locX, locY, zoom, iter);
+				drawFractal(info);
 			}
 		});
 		
@@ -568,18 +555,18 @@ public class Viewer extends JLabel implements Runnable{
 							zoomMod++;
 							failCount++;
 							try {
-								ZoomLoc comp = new MBHelper().findMini(locX, locY, zoom, resW, resH, zoomMod);
+								ZoomLoc comp = new MBHelper().findMini(info, resW, resH, zoomMod);
 								compLoc = comp.loc;
 								compZoom = comp.zoom;
 								if(comp.loc != null) {
 									if(compZoom.compareTo(SizedDouble.ZERO) == 0) {
-										info.minIter.setText("Failed to find minibrot");
+										renderInfo.minIter.setText("Failed to find minibrot");
 									}else {
-										locX = comp.loc.x;
-										locY = comp.loc.y;
-										zoom = comp.zoom;
+										info.setX(comp.loc.x);
+										info.setY(comp.loc.y);
+										info.setZoom(comp.zoom);
 										MBHelper.lastHelper = null;
-										drawFractal(locX, locY, zoom, iter);
+										drawFractal(info);
 									}
 								}
 							}catch(Exception e) {
@@ -669,11 +656,11 @@ public class Viewer extends JLabel implements Runnable{
 	protected static int oversample = 1;
 	protected static double blur = 0;
 	protected static boolean shufflePoints = true;
-	private static void drawFractal(BigDecimal locX, BigDecimal locY, SizedDouble zoom2, int iter) {
+	private static void drawFractal(MBInfo info) {
 		thread = new Thread(new Runnable(){
 			@Override
 			public void run() {
-				new MBHelper().getSetP(bi, currentPalette, locX, locY, zoom2, iter, oversample, blur, power, shufflePoints, hist);
+				new MBHelper().getSetP(bi, info);
 			}
 		});
 		if(current != null) {
@@ -805,16 +792,10 @@ public class Viewer extends JLabel implements Runnable{
 		private void saveFile(File selectedFile) {
 			try {
 				PrintWriter writer = new PrintWriter(selectedFile);
-				writer.println("x:" + locX);
-				writer.println("y:" + locY);
-				writer.println("zoom:" + zoom);
-				writer.println("iterations:" + iter);
-				writer.println("power:" + power);
-				String pl = "palette:0:" + currentPalette.name + ":" + currentPalette.colorlength + ":" + currentPalette.loop;
-				for(int color : currentPalette.init) {
-					pl += ":" + color;
+				HashMap<String, String> data = getData();
+				for(String key : data.keySet()) {
+					writer.println(key + ":" + data.get(key));
 				}
-				writer.println(pl);
 				writer.flush();
 				writer.close();
 			} catch (FileNotFoundException e) {
@@ -823,18 +804,8 @@ public class Viewer extends JLabel implements Runnable{
 		}
 	}
 
-	private HashMap<String, String> getData() {
-		HashMap<String, String> data = new HashMap<>();
-		data.put("x", "" + locX);
-		data.put("y", "" + locY);
-		data.put("zoom", "" + zoom);
-		data.put("iterations", "" + iter);
-		data.put("power", "" + power);
-		String pl = "0:" + currentPalette.name + ":" + currentPalette.colorlength + ":" + currentPalette.loop;
-		for(int color : currentPalette.init) {
-			pl += ":" + color;
-		}
-		data.put("palette", "" + pl);
+	private static HashMap<String, String> getData() {
+		HashMap<String, String> data = info.getData();
 		return data;
 	}
 
@@ -904,7 +875,7 @@ public class Viewer extends JLabel implements Runnable{
 			int rVal = c.showOpenDialog(window);
 			if (rVal == JFileChooser.APPROVE_OPTION) {
 				setFile(c.getSelectedFile());
-				drawFractal(locX, locY, zoom, iter);
+				drawFractal(info);
 			}
 			if (rVal == JFileChooser.CANCEL_OPTION) {}
 		}

@@ -33,10 +33,10 @@ public class ImageRender {
 				if(saved.exists()) {
 					MBInfo info1 = MBInfoGetter.getInfo(saved);
 					if(info1 != null && info1.wasInitialized()) {
-						locX = info1.x;
-						locY = info1.y;
-						zoom = info1.zoom;
-						iter = info1.iterations;
+						locX = info1.getX();
+						locY = info1.getY();
+						zoom = info1.getZoom();
+						iter = info1.getIterations();
 						width = Toolkit.getDefaultToolkit().getScreenSize().width;
 						height = Toolkit.getDefaultToolkit().getScreenSize().height;
 						name = saved.getName();

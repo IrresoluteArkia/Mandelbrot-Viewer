@@ -109,11 +109,21 @@ public class MBHelper {
 	}
 	
 //	@SuppressWarnings("unused")
-	public void getSetP(BufferedImage bi, Palette palette, BigDecimal x, BigDecimal y, SizedDouble zoom, int iterLimit, int oversample, double blur, Complex power, boolean shufflePoints, boolean doHist) {
-		Viewer.info.minIter.setText("Rendering...");
-		Viewer.info.maxIter.setText("Radius: " + zoom.toString(3));
-		Viewer.info.avgIter.setText("X: " + x.toString());
-		Viewer.info.tTime.setText("Y: " + y.toString());
+	public void getSetP(BufferedImage bi, MBInfo info) {
+		final SizedDouble zoom = info.getZoom();
+		final BigDecimal x = info.getX();
+		final BigDecimal y = info.getY();
+		final int iterLimit = info.getIterations();
+		final int oversample = info.getOversample();
+		final boolean shufflePoints = info.shouldShufflePoints();
+		final Complex power = info.getPower();
+		final double blur = info.getBlur();
+		final Palette palette = info.getPalette();
+		final boolean doHist = info.shouldDoHist();
+		Viewer.renderInfo.minIter.setText("Rendering...");
+		Viewer.renderInfo.maxIter.setText("Radius: " + zoom.toString(3));
+		Viewer.renderInfo.avgIter.setText("X: " + x.toString());
+		Viewer.renderInfo.tTime.setText("Y: " + y.toString());
 		Viewer.window.validate();
 		Viewer.window.pack();
 		hist = new int[iterLimit];
@@ -182,7 +192,7 @@ public class MBHelper {
 					return;
 				}
 			}
-			Viewer.info.minIter.setText("Reference " + referencePoints + ": Skipping " + approx.skipped + " iterations...");
+			Viewer.renderInfo.minIter.setText("Reference " + referencePoints + ": Skipping " + approx.skipped + " iterations...");
 			for(ZoomPoint point : points) {
 				if(helper != this) {
 					lastHelper = this;
@@ -287,12 +297,12 @@ public class MBHelper {
 				}
 			}
 		}
-		String info = "Drew Fractal in " + (System.currentTimeMillis() - startTime) + "ms";
-		Viewer.info.minIter.setText(info);
+		String drawInfo = "Drew Fractal in " + (System.currentTimeMillis() - startTime) + "ms";
+		Viewer.renderInfo.minIter.setText(drawInfo);
 //		Viewer.window.pack();
 		Viewer.window.validate();
 		Viewer.window.pack();
-		System.out.println(info);
+		System.out.println(drawInfo);
 		lastHelper = this;
 	}
 	
@@ -623,7 +633,7 @@ public class MBHelper {
 				int nPercent = (i * 100 / maxIter);
 				if(percent != nPercent) {
 					percent = nPercent;
-					Viewer.info.minIter.setText("Getting Reference " + percent + "%");
+					Viewer.renderInfo.minIter.setText("Getting Reference " + percent + "%");
 				}
 				Complex2 cx2 = c.multiply(2);
 				XN.add(c);
@@ -674,7 +684,7 @@ public class MBHelper {
 				int nPercent = (i * 100 / rPoint.XN.size());
 				if(percent != nPercent) {
 					percent = nPercent;
-					Viewer.info.minIter.setText("Approximating " + percent + "%");
+					Viewer.renderInfo.minIter.setText("Approximating " + percent + "%");
 				}
 				AN.add(AN.get(i - 1).multiply(rPoint.XN2.get(i - 1)).addReal(1));
 				BN.add(BN.get(i - 1).multiply(rPoint.XN2.get(i - 1)).add(AN.get(i - 1).pow(2)));
@@ -703,7 +713,7 @@ public class MBHelper {
 			if(helper != this) {
 				return -1;
 			}
-			Viewer.info.minIter.setText("Counting period: " + period);
+			Viewer.renderInfo.minIter.setText("Counting period: " + period);
 			Viewer.window.validate();
 			Viewer.window.pack();
 			for(int i = 0; i < all0.length; i++) {
@@ -755,11 +765,14 @@ public class MBHelper {
 		return cr.compareTo(BigDecimal.ZERO);
 	}
 
-	public ZoomLoc findMini(BigDecimal locX, BigDecimal locY, SizedDouble zoom, int width, int height, int zoomMod) {
+	public ZoomLoc findMini(MBInfo info, int width, int height, int zoomMod) {
+		BigDecimal x = info.getX();
+		BigDecimal y = info.getX();
+		SizedDouble zoom = info.getZoom();
 		int zoomMag = (-zoom.size) * zoomMod + 4;
-		int period = this.getPeriod(locX, locY, zoom, width, height, zoomMag);
-		Viewer.info.minIter.setText("Period found: " + period);
-		Complex2 miniLoc = getMini(new Complex2(locX, locY, zoomMag), period);
+		int period = this.getPeriod(x, y, zoom, width, height, zoomMag);
+		Viewer.renderInfo.minIter.setText("Period found: " + period);
+		Complex2 miniLoc = getMini(new Complex2(x, y, zoomMag), period);
 		SizedDouble newZoom = getSize(miniLoc, period).magSD();
 		return new ZoomLoc(miniLoc, newZoom);
 	}
@@ -782,7 +795,7 @@ public class MBHelper {
 		int y = 1;
 		SizedDouble comp = new SizedDouble(1, -complex2.getScale());
 		while(true) {
-			Viewer.info.minIter.setText("Period: " + period + "Iter: " + y);
+			Viewer.renderInfo.minIter.setText("Period: " + period + "Iter: " + y);
 			y++;
 			if(!helper.equals(this)) {
 				return null;
