@@ -74,4 +74,32 @@ public class Palette {
 		return newPalette;
 	}
 	
+	@Override
+	public String toString() {
+		String pl = "0:" + this.name + ":" + this.colorlength + ":" + this.loop;
+		for(int color : this.init) {
+			pl += ":" + color;
+		}
+		return pl;
+	}
+
+	public static Palette fromString(String string) {
+		String[] lines = string.split(":");
+		int add = lines[0].equals("palette") ? 1 : 0;
+		String name = lines[1 + add];
+		int colorlength = Integer.parseInt(lines[2 + add]); 
+		boolean loop = Boolean.parseBoolean(lines[3 + add]);
+		int[] colors = new int[lines.length - 4 - add];
+		for(int i = 4 + add; i < lines.length; i++) {
+			try{
+				colors[i - 4 - add] = Integer.parseInt(lines[i]);
+			}catch(Exception e) {
+				colors[i - 4 - add] = Integer.parseInt(lines[i].substring(2), 16);
+			}
+		}
+		
+		Palette palette = new Palette(name, colorlength, loop, colors);
+		return palette;
+	}
+	
 }
