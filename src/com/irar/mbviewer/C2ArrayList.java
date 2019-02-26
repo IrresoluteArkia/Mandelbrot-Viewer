@@ -20,6 +20,12 @@ public class C2ArrayList {
 	private int mode = 0;
 	private int lastIndex = -1;
 	private Complex2 lastRetrieved = null;
+	static {
+		Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+			clearCache();
+//			storageDir.delete();
+		}));
+	}
 	
 	static {
 		if(!storageDir.exists() || !storageDir.isDirectory()) {
@@ -37,6 +43,17 @@ public class C2ArrayList {
 		}
 	}
 	
+	public static void clearCache() {
+		if(storageDir.exists()) {
+			File[] files = storageDir.listFiles();
+			for(File file : files) {
+				try {
+					file.delete();
+				}catch(Exception e) {}
+			}
+		}
+	}
+
 	public boolean add(Complex2 c2) {
 		if(mode == 0) {
 			writer.println(c2.x.toString() + " " + c2.y.toString());
@@ -88,6 +105,11 @@ public class C2ArrayList {
 	
 	public int size() {
 		return size;
+	}
+	
+	@Override
+	public void finalize() {
+		delete();
 	}
 	
 }

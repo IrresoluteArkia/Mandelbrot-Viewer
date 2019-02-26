@@ -3,310 +3,44 @@ package com.irar.mbviewer;
 import java.awt.image.BufferedImage;
 import java.math.BigDecimal;
 import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.HashMap;
+import java.util.Collections;
 import java.util.List;
 import java.util.Random;
 
+import com.irar.mbviewer.util.RandomUtil;
+
 public class MBHelper {
-
-	int[] hist;
-	static final double epsilon2 = 1.9721522630525295e-31;
-	public static MBHelper helper;
-	public static MBHelper lastHelper = null;
-	public ZoomPoint bestPoint = null;
-	public HashMap<ZoomPoint, Integer> rPoints = new HashMap<>();
-	public Iteration[][][] iterations;
 	
-	public MBHelper() {
-		helper = this;
-	}
+	Iteration[][][] iterations = null;
+	boolean interrupted = false;
 	
-	private void fillIter(int i) {
-		for(Iteration[][] iter : iterations) {
-			for(Iteration[] iter2 : iter) {
-				Iteration fillWith = new Iteration(-1, 0);
-				Arrays.fill(iter2, fillWith);
-			}
-		}
-	}
-
-	public void getSetP(BufferedImage bi, MBInfo info) {
-		final SizedDouble zoom = info.getZoom();
-		final BigDecimal x = info.getX();
-		final BigDecimal y = info.getY();
-		final int iterLimit = info.getIterations();
-		final int oversample = info.getOversample();
-		final boolean shufflePoints = info.shouldShufflePoints();
-		final Complex power = info.getPower();
-		final double blur = info.getBlur();
-		final Palette palette = info.getPalette();
-		final boolean doHist = info.shouldDoHist();
-		Viewer.renderInfo.minIter.setText("Rendering...");
-		Viewer.renderInfo.maxIter.setText("Radius: " + zoom.toString(3));
-		Viewer.renderInfo.avgIter.setText("X: " + x.toString());
-		Viewer.renderInfo.tTime.setText("Y: " + y.toString());
-		Viewer.window.validate();
-		Viewer.window.pack();
-		hist = new int[iterLimit];
-		long startTime = System.currentTimeMillis();
-		int zoomMag = (int) Math.abs(zoom.size) + 4;
+	public void getSet(BufferedImage bi, MBInfo info, IProgressMonitorFactory<?> progressMonitorFactory) {
 		int width = bi.getWidth();
 		int height = bi.getHeight();
-		iterations = new Iteration[width][height][oversample];
-		fillIter(-1);
-		List<ZoomPoint> points = getPoints(width, height, zoom, x, y, zoomMag, shufflePoints);
-		if(helper != this) {
-			lastHelper = this;
+		int oversample = info.getOversample();
+		Iteration[][][] allIterations = null;
+		try {
+			allIterations = iterate(info, width, height, oversample, progressMonitorFactory);
+		}catch(Exception e) {
+			interrupted = true;
+			progressMonitorFactory.deleteAllMonitors();
 			return;
 		}
-		int bestIter = 0;
-		int referencePoints = 0;
-		List<ZoomPoint> pointsRedo = new ArrayList<>();
-		List<Patch> patches = new ArrayList<>();
-		Patch patch = null;
-		while(points.size() > 0) {
-			ZoomPoint r2 = null;
-			referencePoints++;
-			ReferencePoint rPoint = null;
-			SeriesApprox approx = null;
-			if(referencePoints == 1) {
-				ZoomPoint r3 = getLastBestPoint(points.get(0).c.produce().x, points.get(points.size() - 1).c.produce().x, points.get(0).c.produce().y, points.get(points.size() - 1).c.produce().y);
-				if(r3 == null) {
-					final BigDecimal bx = x;
-					final BigDecimal by = y;
-					r3 = new ZoomPoint(0, 0, () -> {
-						return new Complex2(bx, by, zoomMag);
-					});
-				}else {
-				}
-				Complex2 gen = r3.c.produce();
-				rPoint = new ReferencePoint(gen.x, gen.y, iterLimit, zoomMag, power);
-				if(helper != this) {
-					lastHelper = this;
-					return;
-				}
-				rPoints.put(r3, rPoint.XNc.size());
-				approx = new SeriesApprox(rPoint, zoomMag, points.get(new Random().nextInt(points.size())), power);
-				if(helper != this) {
-					lastHelper = this;
-					return;
-				}
-			}else {
-				if(patch != null) {
-					Complex2 gen = patch.rPoint.c.produce();
-					r2 = patch.rPoint;
-					rPoint = new ReferencePoint(gen.x, gen.y, iterLimit, zoomMag, power);
-					rPoints.put(patch.rPoint, rPoint.XNc.size());
-				}else {
-					r2 = points.get(new Random().nextInt(points.size()));
-					Complex2 gen = r2.c.produce();
-					rPoint = new ReferencePoint(gen.x, gen.y, iterLimit, zoomMag, power);
-					rPoints.put(r2, rPoint.XNc.size());
-				}
-				if(helper != this) {
-					lastHelper = this;
-					return;
-				}
-				approx = new SeriesApprox(rPoint, zoomMag, points.size() > 0 ? (points.get(new Random().nextInt(points.size()))) : r2, power);
-				if(helper != this) {
-					lastHelper = this;
-					return;
-				}
-			}
-			Viewer.renderInfo.minIter.setText("Reference " + referencePoints + ": Skipping " + approx.skipped + " iterations...");
-			for(ZoomPoint point : points) {
-				if(helper != this) {
-					lastHelper = this;
-					return;
-				}
-				Iteration[] iterations;
-				if(/*oversample > 1*/true) {
-					if(point.equals(r2)) {
-						iterations = new Iteration[] {new Iteration(rPoint.XNc.size(), 0)};
-					}else {
-						iterations = getIterOver(width, height, point, rPoint, approx, iterLimit, zoom, zoomMag, oversample, blur, power);
-					}
-					int lowest = iterLimit;
-					for(Iteration iteration : iterations) {
-						if(iteration.iterations > bestIter) {
-							bestPoint = point;
-							bestIter = (int) iteration.iterations;
-						}
-						if(iteration.iterations < lowest) {
-							lowest = (int) iteration.iterations;
-						}
-					}
-					point.itersDone = lowest;
-				}/*else {
-					if(zoom.size < -320) {
-						iterations = new int[] {getIterBig(point, rPoint, approx, iterLimit, zoomMag, blur)};
-					}else {
-						iterations = new int[] {getIter(point, rPoint, approx, iterLimit, zoomMag, blur)};
-					}
-				}*/
-				this.iterations[point.x][point.y] = iterations;
-				int[] color = new int[oversample];
-				for(int i = 0; i < iterations.length; i++) {
-					Iteration iterat = iterations[i];
-					if(iterat.iterations < iterLimit) {
-						color[i] = getColor(iterat, palette.paletteloop);
-					}
-				}
-				if(point.redo) {
-					pointsRedo.add(point);
-					point.redo = false;
-//					setColor(bi, point.x, point.y, new int[] {255 << 16});
-				}else {
-					if(iterations[0].iterations < iterLimit) {
-						hist[iterations[0].iterations]++;
-					}
-				}
-				setColor(bi, point.x, point.y, color);
-			}
-			rPoint.XN.delete();
-			points.clear();
-			patches.remove(patch);
-			if(patches.isEmpty()) {
-				while(pointsRedo.size() > 0) {
-					Patch patch1 = new Patch(pointsRedo);
-					if(patch1.rPoint != null) {
-						patches.add(patch1);
-					}else {
-						break;
-					}
-				}
-			}
-			if(!patches.isEmpty()) {
-				patch = patches.get(0);
-				points = patches.get(0).points;
-			}
-//			points.remove(r2);
-		}
-		if(doHist) {
-			int total = 0;
-			for(int i = 0; i < hist.length; i++) {
-				total += hist[i];
-			}
-			double huetrack = 0;
-			double[] hues = new double[hist.length];
-			for(int i = 0; i < hues.length; i++) {
-				huetrack += ((double) hist[i] / total);
-				hues[i] = huetrack;
-			}
-			for(int i = 0; i < iterations.length; i++) {
-				Iteration[][] iter2 = iterations[i];
-				for(int j = 0; j < iter2.length; j++) {
-					Iteration iter = iter2[j][0];
-					if(iter.iterations < iterLimit) {
-						int iters = iter.iterations;
-						if(iter.iterations <= 0) {
-							iters = 1;
-						}
-						double hue = hues[iters - 1];
-/*						for(int k = 0; k < iter.iterations; k++) {
-							hue += (double) hist[k] / total;
-						}*/
-						hue = Math.min(Math.max(hue, 0), 1);
-						int hue2 = (int) (hue * palette.palette.length);
-						double extra = 1;
-						if(iters < iterLimit - 1) {
-							extra = (double) hist[iters] / total;
-						}
-						int[] color = new int[] {getColor(new Iteration(hue2, iter.partial), palette.palette, extra)};
-						setColor(bi, i, j, color);
-					}
-				}
+		drawIterations(allIterations, bi, info.getPalette(), info.getIterations());
+		iterations = allIterations;
+	}
+
+	private void drawIterations(Iteration[][][] iterations, BufferedImage bi, Palette palette, int maxIter) {
+		for(int i = 0; i < iterations.length; i++) {
+			Iteration[][] i2 = iterations[i];
+			for(int j = 0; j < i2.length; j++) {
+				Iteration[] iterSamples = i2[j];
+				int[] sampleColors = getColors(iterSamples, palette, maxIter);
+				setColor(bi, i, j, sampleColors);
 			}
 		}
-		String drawInfo = "Drew Fractal in " + (System.currentTimeMillis() - startTime) + "ms";
-		Viewer.renderInfo.minIter.setText(drawInfo);
-//		Viewer.window.pack();
-		Viewer.window.validate();
-		Viewer.window.pack();
-		System.out.println(drawInfo);
-		lastHelper = this;
 	}
 	
-	private static int getColor(Iteration iterat, int[] colors) {
-		int color1 = colors[iterat.iterations % colors.length];
-		int color2 = colors[(iterat.iterations + 1) % colors.length];
-		int color = interColors(color1, color2, iterat.partial % 1);
-		return color;
-	}
-
-/*	private static int getColor(Iteration iterat, int[] colors, double extra) {
-		int intextra = (int) (extra * colors.length);
-		int itercolor = iterat.iterations;
-		double partial = iterat.partial;
-		if((int) (partial * intextra) > 1) {
-			int add = (int) (partial * intextra);
-			itercolor += add;
-			partial -= (double) add / intextra;
-		}
-		partial = Math.min(Math.max(partial, 0), 1);
-		if(itercolor >= colors.length) {
-			itercolor = colors.length - 2;
-			partial = 0;
-		}
-		int color1 = colors[itercolor % colors.length];
-		int color2 = colors[(itercolor + 1) % colors.length];
-		int color = interColors(color1, color2, partial);
-		return color;
-	}*/
-
-	private static int getColor(Iteration iterat, int[] colors, double extra) {
-		int color1 = colors[iterat.iterations % colors.length];
-		int color2 = colors[(iterat.iterations + (int) (extra * colors.length)) % colors.length];
-		int color = interColors(color1, color2, iterat.partial % 1);
-		return color;
-	}
-
-	static int rm = 0x00ff0000;
-	static int gm = 0x0000ff00;
-	static int bm = 0x000000ff;
-	private static int interColors(int color1, int color2, double fractional) {
-		int red1 = (rm & color1) >> 16;
-		int green1 = (gm & color1) >> 8;
-		int blue1 = (bm & color1);
-		int red2 = (rm & color2) >> 16;
-		int green2 = (gm & color2) >> 8;
-		int blue2 = (bm & color2);
-		int difRed = Math.abs(red1 - red2);
-		int difGreen = Math.abs(green1 - green2);
-		int difBlue = Math.abs(blue1 - blue2);
-		int resRed = (red1 < red2 ? (int) (fractional * difRed) : (int) ((1 - fractional) * difRed)) + Math.min(red1, red2);
-		int resGreen = (green1 < green2 ? (int) (fractional * difGreen) : (int) ((1 - fractional) * difGreen)) + Math.min(green1, green2);
-		int resBlue = (blue1 < blue2 ? (int) (fractional * difBlue) : (int) ((1 - fractional) * difBlue)) + Math.min(blue1, blue2);
-		return (resRed << 16) + (resGreen << 8) + resBlue;
-	}
-	
-	private ZoomPoint getLastBestPoint(BigDecimal x1, BigDecimal x2, BigDecimal y1, BigDecimal y2) {
-		if(lastHelper != null && !lastHelper.rPoints.isEmpty()) {
-			ZoomPoint best = null;
-			int bestIter = 0;
-			BigDecimal difX = x2.subtract(x1).multiply(BigDecimal.TEN);
-			BigDecimal difY = y2.subtract(y1).multiply(BigDecimal.TEN);
-			BigDecimal x1d = x1.subtract(difX);
-			BigDecimal y1d = y1.subtract(difY);
-			BigDecimal x2d = x2.add(difX);
-			BigDecimal y2d = y2.add(difY);
-			for(ZoomPoint point : lastHelper.rPoints.keySet()) {
-				int iter = lastHelper.rPoints.get(point);
-				Complex2 gen = point.c.produce();
-				if(gen.x.compareTo(x1d) > 0 && gen.x.compareTo(x2d) < 0 && gen.y.compareTo(y1d) > 0 && gen.y.compareTo(y2d) < 0 && iter > bestIter) {
-					best = point;
-					bestIter = iter;
-				}
-			}
-			if(best == null && lastHelper.bestPoint != null) {
-				best = lastHelper.bestPoint;
-			}
-			return best;
-		}
-		return null;
-	}
-
 	private void setColor(BufferedImage bi, int x, int y, int[] color) {
 		int totalR = 0;
 		int totalG = 0;
@@ -326,32 +60,244 @@ public class MBHelper {
 		bi.setRGB(x, y, avg);
 	}
 
-	private Iteration[] getIterOver(int width, int height, ZoomPoint point, ReferencePoint rPoint, SeriesApprox approx,
-			int iterLimit, SizedDouble zoom, int zoomMag, int oversampleAmount, double blur, Complex power) {
-		Iteration[] over = new Iteration[oversampleAmount];
-		for(int i = 0; i < oversampleAmount; i++) {
-			SizedDouble maxDevAmountX = zoom.divide(width);
-			SizedDouble maxDevAmountY = zoom.divide(height);
-			Complex2 genPoint = point.c.produce();
-			ZoomPoint pointI = new ZoomPoint(point.x, point.y, () -> {
-				BigDecimal x = genPoint.x.add(maxDevAmountX.multiply(new Random().nextDouble()).asBigDecimal(zoomMag));
-				BigDecimal y = genPoint.y.add(maxDevAmountY.multiply(new Random().nextDouble()).asBigDecimal(zoomMag));
-				return new Complex2(x, y, zoomMag);
-			});
-			if(zoom.size < -320) {
-				over[i] = getIterBig(pointI, rPoint, approx, iterLimit, zoomMag, blur);
-			}else {
-				over[i] = getIter(pointI, rPoint, approx, iterLimit, zoomMag, blur, power, zoom);
+	private int[] getColors(Iteration[] iterSamples, Palette palette, int maxIter) {
+		int[] colors;
+		if(iterSamples == null) {
+			colors = new int[] {255 * 256 * 256};
+		}else {
+			colors = new int[iterSamples.length];
+			if(iterSamples.length > 0 && iterSamples[0].iterations < maxIter) {
+				for(int i = 0; i < iterSamples.length; i++) {
+					colors[i] = getColor(iterSamples[i], palette);
+				}
 			}
+		}
+		return colors;
+	}
+
+	private int getColor(Iteration iteration, Palette palette) {
+		int[] colors = palette.paletteloop;
+		int color1 = colors[iteration.iterations % colors.length];
+		int color2 = colors[(iteration.iterations + 1) % colors.length];
+		int color = interColors(color1, color2, iteration.partial % 1);
+		return color;
+	}
+
+	private static int rm = 0x00ff0000;
+	private static int gm = 0x0000ff00;
+	private static int bm = 0x000000ff;
+	private int interColors(int color1, int color2, float f) {
+		int red1 = (rm & color1) >> 16;
+		int green1 = (gm & color1) >> 8;
+		int blue1 = (bm & color1);
+		int red2 = (rm & color2) >> 16;
+		int green2 = (gm & color2) >> 8;
+		int blue2 = (bm & color2);
+		int difRed = Math.abs(red1 - red2);
+		int difGreen = Math.abs(green1 - green2);
+		int difBlue = Math.abs(blue1 - blue2);
+		int resRed = (red1 < red2 ? (int) (f * difRed) : (int) ((1 - f) * difRed)) + Math.min(red1, red2);
+		int resGreen = (green1 < green2 ? (int) (f * difGreen) : (int) ((1 - f) * difGreen)) + Math.min(green1, green2);
+		int resBlue = (blue1 < blue2 ? (int) (f * difBlue) : (int) ((1 - f) * difBlue)) + Math.min(blue1, blue2);
+		return (resRed << 16) + (resGreen << 8) + resBlue;
+	}
+
+	private Iteration[][][] iterate(MBInfo info, int width, int height, int samples, IProgressMonitorFactory<?> factory) throws Exception {
+		IProgressMonitor monitor = factory.createNewProgressMonitor();
+		Iteration[][][] iterations = new Iteration[width][height][];
+		ReferencePoint rPoint = getStartingPoint(info, factory);
+		List<ZoomPoint> points = getZoomPoints(info, width, height);
+		SeriesApprox approx = getApproximations(rPoint, points, info, width, height, factory);
+		List<ZoomPoint> repeatPoints = new ArrayList<>();
+		for(ZoomPoint point : points) {
+			point.redo = true;
+		}
+		if(info.getIterations() <= approx.skipped * 20) {
+			info.setIterations(approx.skipped * 20);
+			repeatPoints = points;
+		}else {
+			int current = 0;
+			int done = 0;
+			int end = points.size();
+			for(ZoomPoint point : points) {
+				if(point.redo) {
+					point.redo = false;
+				}
+				iterations[point.x][point.y] = iterate(info, point, rPoint, approx, getZoomMagnitude(info), samples, width, height);
+				if(point.redo) {
+					repeatPoints.add(point);
+				}else {
+					done++;
+				}
+				current++;
+				if(isBadReference(current, points.size(), repeatPoints.size())) {
+					repeatPoints = points;
+					break;
+				}
+				monitor.setProgress((float) done / end);
+			}
+		}
+		if(repeatPoints.size() > 0) {
+			rPoint = null;
+			approx = null;
+			points = null;
+			repeatIteration(info, repeatPoints, iterations, samples, factory, monitor, 1, width, height);
+		}
+		monitor.deleteMonitor();
+		return iterations;
+	}
+
+	private boolean isBadReference(int currentPointNum, int totalPointNum, int redoNum) {
+//		float doneMoreThan = 0.01F;
+		int doneMoreThan = 100;
+		float criticalRedoRatio = 0.5F;
+		if(currentPointNum > doneMoreThan) {
+			if((float) redoNum / currentPointNum > criticalRedoRatio) {
+//				System.out.println("Bad reference, recalculating...");
+				return true;
+			}
+		}
+		return false;
+	}
+
+	private void repeatIteration(MBInfo info, List<ZoomPoint> points, Iteration[][][] iterations, int samples,
+			IProgressMonitorFactory<?> factory, IProgressMonitor progressMonitor, int repeatNum, int width, int height) throws Exception {
+		int end = iterations.length * iterations[0].length;
+		int current = end - points.size();
+		int done = current;
+		int currentR = 0;
+		if (repeatNum >= 100/* || (remaining < (end / 10000) && repeatNum > 10) */) {
+			return;
+		}
+		ReferencePoint rPoint = getRandomReference(points, info, factory);
+		SeriesApprox approx = getApproximations(rPoint, points, info, width, height, factory);
+		List<ZoomPoint> repeatPoints = new ArrayList<>();
+		if(info.getIterations() < approx.skipped * 10) {
+			info.setIterations(approx.skipped * 10);
+			repeatPoints = points;
+		}else {
+			for(ZoomPoint point : points) {
+				if(point.redo) {
+					point.redo = false;
+					iterations[point.x][point.y] = iterate(info, point, rPoint, approx, getZoomMagnitude(info), samples, width, height);
+				}
+				if(point.redo) {
+					repeatPoints.add(point);
+				}else {
+					done++;
+				}
+				current++;
+				currentR++;
+				if(isBadReference(currentR, points.size(), repeatPoints.size())) {
+					repeatPoints = points;
+					break;
+				}
+				progressMonitor.setProgress((float) done / end);
+			}
+		}
+		if(repeatPoints.size() > 0) {
+			rPoint = null;
+			approx = null;
+			points = null;
+			repeatIteration(info, repeatPoints, iterations, samples, factory, progressMonitor, repeatNum + 1, width, height);
+		}
+	}
+
+	private ReferencePoint getRandomReference(List<ZoomPoint> points, MBInfo info, IProgressMonitorFactory<?> factory) throws Exception {
+		ZoomPoint point = RandomUtil.pickOne(points);
+		points.remove(point);
+		Complex2 chosenLoc = point.c.produce();
+		return new ReferencePoint(chosenLoc.x, chosenLoc.y, info.getIterations(), getZoomMagnitude(info), info.getPower(), this, factory.createNewProgressMonitor());
+	}
+
+	private Iteration[] iterate(MBInfo info, ZoomPoint point, ReferencePoint rPoint, SeriesApprox approx, int zoomMagnitude,
+			int samples, int width, int height) throws Exception {
+		ZoomPoint pointI = deviateRandomly(point, width, height, info.getZoom(), zoomMagnitude);
+		Iteration[] iterations = new Iteration[samples];
+		for(int i = 0; i < samples; i++) {
+			iterations[i] = iterate(info, pointI, rPoint, approx, zoomMagnitude);
 			if(pointI.redo) {
+				point.redo = true;
+				continue;
+			}else if(iterations[i].iterations == info.getIterations()) {
+				return new Iteration[] {iterations[i]};
+			}
+		}
+		return iterations;
+	}
+
+	private ZoomPoint deviateRandomly(ZoomPoint point, int width, int height, SizedDouble zoom, int zoomMag) {
+		SizedDouble maxDevAmountX = zoom.divide(width);
+		SizedDouble maxDevAmountY = zoom.divide(height);
+		Complex2 genPoint = point.c.produce();
+		ZoomPoint pointI = new ZoomPoint(point.x, point.y, () -> {
+			BigDecimal x = genPoint.x.add(maxDevAmountX.multiply(new Random().nextDouble()).asBigDecimal(zoomMag));
+			BigDecimal y = genPoint.y.add(maxDevAmountY.multiply(new Random().nextDouble()).asBigDecimal(zoomMag));
+			return new Complex2(x, y, zoomMag);
+		});
+		return pointI;
+	}
+
+	private Iteration iterate(MBInfo info, ZoomPoint point, ReferencePoint rPoint, SeriesApprox approx, int zoomMagnitude) throws Exception {
+		if(info.getZoom().size < -320) {
+			return iterateBig(info, point, rPoint, approx, zoomMagnitude);
+		}else {
+			return iterateSmall(info, point, rPoint, approx, zoomMagnitude);
+		}
+	}
+
+	private Iteration iterateSmall(MBInfo info, ZoomPoint point, ReferencePoint rPoint, SeriesApprox approx,
+			int zoomMagnitude) throws Exception {
+		int maxIter = info.getIterations();
+		Complex2 genPoint = point.c.produce();
+		Complex2 delta02 = genPoint.subtract(rPoint.XN.get(0));
+		Complex delta0 = new Complex(delta02);
+		Complex deltaN;
+		int curIter = approx.skipped;
+		if(curIter == 0) {
+			deltaN = delta0;
+		}else {
+			Complex3 d03 = new Complex3(delta02);
+			Complex3 deltaN2 = d03.multiply(approx.AN.get(curIter)).add(d03.pow(2).multiply(approx.BN.get(curIter))).add(d03.pow(3).multiply(approx.CN.get(curIter)));
+			deltaN = new Complex(deltaN2);
+		}
+		double squ = 0;
+		do{
+			if(curIter < rPoint.XNcSmall.size()) {
+				Complex deltaNtemp = deltaN.multiply(rPoint.XN2Small.get(curIter).add(deltaN)).add(delta0);
+				deltaN = deltaNtemp;
+			}else if(curIter < maxIter - 2) {
 				point.redo = true;
 				break;
 			}
+			curIter++;
+			if(curIter < rPoint.XNcSmall.size()) {
+				squ = (rPoint.XNcSmall.get(curIter).add(deltaN)).mag();
+				if(rPoint.XNM3Small.get(curIter) > squ) {
+					point.redo = true;
+					break;
+				}
+			}
+			checkShouldKeepRunning();
+		}while(curIter < maxIter && squ < 256);
+		float partial = 0;
+		if ( curIter < maxIter ) {
+		    double log_zn = Math.log(squ) / 2;
+		    double nu = Math.log( log_zn / Math.log(2) ) / Math.log(2);
+		    partial = (float) (1 - nu);
 		}
-		return over;
+		return new Iteration(curIter, partial);
 	}
 
-	private Iteration getIterBig(ZoomPoint point, ReferencePoint rPoint, SeriesApprox approx, int maxIter, int pre, double blur) {
+	public void checkShouldKeepRunning() throws Exception {
+		if(!Viewer.helper.equals(this)) {
+			throw new Exception();
+		}
+	}
+
+	private Iteration iterateBig(MBInfo info, ZoomPoint point, ReferencePoint rPoint, SeriesApprox approx,
+			int zoomMagnitude) {
+		int maxIter = info.getIterations();
 		SizedDouble br = new SizedDouble(256);
 		Complex2 genPoint = point.c.produce();
 		Complex2 delta02 = genPoint.subtract(rPoint.XN.get(0));
@@ -368,9 +314,6 @@ public class MBHelper {
 		do{
 			if(curIter < rPoint.XNc.size()) {
 				deltaN = deltaN.multiply(rPoint.XN2.get(curIter).add(deltaN)).add(delta0);
-				if(blur != 0) {
-					deltaN = deltaN.multiply((new Random().nextDouble() * blur) - (blur / 2) + 1);
-				}
 			}else if(curIter < maxIter - 2) {
 				point.redo = true;
 				break;
@@ -382,7 +325,6 @@ public class MBHelper {
 					point.redo = true;
 					break;
 				}
-//				squ = (rPoint.XNc.get(curIter).add(deltaN)).magSqu();
 			}
 		}while(curIter < maxIter && squ.compareTo(br) < 0);
 		float partial = 0;
@@ -394,64 +336,20 @@ public class MBHelper {
 		return new Iteration(curIter, partial);
 	}
 
-	private Iteration getIter(ZoomPoint point, ReferencePoint rPoint, SeriesApprox approx, int maxIter, int pre, double blur, Complex power, SizedDouble zoom) {
-		Complex2 genPoint = point.c.produce();
-		Complex2 delta02 = genPoint.subtract(rPoint.XN.get(0));
-		Complex delta0 = new Complex(delta02);
-		Complex deltaN;
-		int curIter = approx.skipped;
-		if(curIter == 0) {
-			deltaN = delta0;
-		}else {
-			Complex3 d03 = new Complex3(delta02);
-			Complex3 deltaN2 = d03.multiply(approx.AN.get(curIter)).add(d03.pow(2).multiply(approx.BN.get(curIter))).add(d03.pow(3).multiply(approx.CN.get(curIter)));
-//			deltaN = delta0.multiply(new Complex(approx.AN.get(curIter))).add(delta0.pow(2).multiply(new Complex(approx.BN.get(curIter)))).add(delta0.pow(3).multiply(new Complex(approx.CN.get(curIter))));
-			deltaN = new Complex(deltaN2);
-		}
-		double error = zoom.asDouble() / 1000;
-		double squ = 0;
-		do{
-			if(curIter < rPoint.XNcSmall.size()) {
-/*				if(curIter == 0) {
-					deltaN = new Complex(delta02.add(rPoint.XN.get(curIter)).pow(power).subtract(rPoint.XPN.get(curIter)).add(delta02));
-				}*/
-				Complex deltaNtemp = deltaN.multiply(rPoint.XN2Small.get(curIter).add(deltaN)).add(delta0);
-//				if(Math.abs(deltaN.x - deltaNtemp.x) < error && Math.abs(deltaN.y - deltaNtemp.y) < error) {
-/*				if(Double.doubleToLongBits(deltaN.x) == Double.doubleToLongBits(deltaNtemp.x) && Double.doubleToLongBits(deltaN.y) == Double.doubleToLongBits(deltaNtemp.y)) {
-					break;
-				}*/
-				deltaN = deltaNtemp;
-//				deltaN = deltaN.add(rPoint.XNcSmall.get(curIter)).pow(power).subtract(rPoint.XPNSmall.get(curIter)).add(delta0);
-//				deltaN = deltaN.multiply(rPoint.XNcSmall.get(curIter)).pow(power).add(delta0);
-/*				if(blur != 0) {
-					deltaN = deltaN.multiply((new Random().nextDouble() * blur) - (blur / 2) + 1);
-				}*/
-			}else if(curIter < maxIter - 2) {
-				point.redo = true;
-				break;
-			}
-			curIter++;
-			if(curIter < rPoint.XNcSmall.size()) {
-				squ = (rPoint.XNcSmall.get(curIter).add(deltaN)).mag();
-				if(rPoint.XNM3Small.get(curIter) > squ) {
-					point.redo = true;
-					break;
-				}
-			}
-		}while(curIter < maxIter && squ < 256);
-		float partial = 0;
-		if ( curIter < maxIter ) {
-		    double log_zn = Math.log( /*deltaN.x * deltaN.x + deltaN.y * deltaN.y*/squ ) / 2;
-		    double nu = Math.log( log_zn / Math.log(2) ) / Math.log(2);
-		    partial = (float) (1 - nu);
-		}
-		return new Iteration(curIter, partial);
+	private SeriesApprox getApproximations(ReferencePoint rPoint, List<ZoomPoint> points, MBInfo info, int width, int height, IProgressMonitorFactory<?> factory) throws Exception {
+		ZoomPoint testPoint = new ZoomPoint(0, 0, () -> {
+			int zoomMag = this.getZoomMagnitude(info);
+			BigDecimal x = info.getX().add(info.getZoom().divide(width / 2).asBigDecimal(zoomMag));
+			BigDecimal y = info.getY().add(info.getZoom().divide(height / 2).asBigDecimal(zoomMag));
+			return new Complex2(x, y, zoomMag);
+		});
+		return new SeriesApprox(rPoint, testPoint, info.getPower(), this, factory.createNewProgressMonitor());
 	}
 
-	private List<ZoomPoint> getPoints(int width, int height, SizedDouble zoom, BigDecimal x, BigDecimal y, int pre, boolean shuffle) {
-		int zoomMag = (int) Math.abs(zoom.size) + 4;
+	private List<ZoomPoint> getZoomPoints(MBInfo info, int width, int height) {
+		int zoomMag = this.getZoomMagnitude(info);
 		List<ZoomPoint> points = new ArrayList<>();
-		SizedDouble scale = zoom.multiply(4.0 / height);
+		SizedDouble scale = info.getZoom().multiply(4.0 / height);
 		for(int i = width / 2 - 1, acti = 0; acti < width + 1; i += ((acti % 2 == 1) ? acti : -acti), acti++) {
 			if(acti == 1) {
 				continue;
@@ -460,238 +358,51 @@ public class MBHelper {
 				final int iF = i;
 				final int jF = j;
 				points.add(new ZoomPoint(i, j, () -> {
-					return new Complex2(scale.multiply(iF - width / 2).asBigDecimal(zoomMag).add(x.setScale(pre, BigDecimal.ROUND_DOWN)).setScale(pre, BigDecimal.ROUND_DOWN), scale.multiply(jF - height / 2).asBigDecimal(zoomMag).add(y.setScale(pre, BigDecimal.ROUND_DOWN)).setScale(pre, BigDecimal.ROUND_DOWN), zoomMag);
+					return new Complex2(scale.multiply(iF - width / 2)
+							.asBigDecimal(zoomMag)
+							.add(info.getX()
+									.setScale(zoomMag, BigDecimal.ROUND_DOWN))
+							.setScale(zoomMag, BigDecimal.ROUND_DOWN), 
+							scale.multiply(jF - height / 2)
+							.asBigDecimal(zoomMag)
+							.add(info.getY()
+									.setScale(zoomMag, BigDecimal.ROUND_DOWN))
+							.setScale(zoomMag, BigDecimal.ROUND_DOWN), 
+							zoomMag);
 				}));
-				if(helper != this) {
-					return points;
-				}
 			}
 		}
-/*		if(shuffle) {
-			Collections.shuffle(points);
-		}*/
+		Collections.shuffle(points);
 		return points;
 	}
 
-	public void recolor(BufferedImage bi, Palette palette, int maxIter, boolean doHist) {
-		if(doHist) {
-			int total = 0;
-			for(int i = 0; i < hist.length; i++) {
-				total += hist[i];
-			}
-			double huetrack = 0;
-			double[] hues = new double[hist.length];
-			for(int i = 0; i < hues.length; i++) {
-				huetrack += ((double) hist[i] / total);
-				hues[i] = huetrack;
-			}
-			for(int i = 0; i < iterations.length; i++) {
-				Iteration[][] iter2 = iterations[i];
-				for(int j = 0; j < iterations[i].length; j++) {
-					Iteration iter = iter2[j][0];
-					if(iter.iterations < maxIter) {
-//						double hue = 0;
-						int iters = iter.iterations;
-						if(iter.iterations <= 0) {
-							iters = 1;
-						}
-						double hue = hues[iters - 1];
-/*						for(int k = 0; k < iter.iterations; k++) {
-							hue += (double) hist[k] / total;
-						}*/
-						hue = Math.min(Math.max(hue, 0), 1);
-						int hue2 = (int) (hue * palette.palette.length);
-						double extra = 1;
-						if(iters < maxIter - 1) {
-							extra = (double) hist[iters] / total;
-						}
-						int[] color = new int[] {getColor(new Iteration(hue2, iter.partial), palette.palette, extra)};
-						setColor(bi, i, j, color);
-					}
-				}
-			}
-		}else {
-			for(int i = 0; i < iterations.length; i++) {
-				for(int j = 0; j < iterations[i].length; j++) {
-					int[] color = new int[iterations[i][j].length];
-					for(int k = 0; k < iterations[i][j].length; k++) {
-						Iteration iterat = iterations[i][j][k];
-						if(iterat.iterations >= 0) {
-							if(iterat.iterations < maxIter) {
-								color[k] = getColor(iterat, palette.paletteloop);
-							}
-						}
-					}
-					setColor(bi, i, j, color);
-				}
-			}
-		}
-
+	private ReferencePoint getStartingPoint(MBInfo info, IProgressMonitorFactory<?> factory) throws Exception {
+		return new ReferencePoint(info.getX(), info.getY(), info.getIterations(), getZoomMagnitude(info), info.getPower(), this, factory.createNewProgressMonitor());
 	}
 	
-	public class ReferencePoint{
+	private int getZoomMagnitude(MBInfo info){
+		return Math.abs(info.getZoom().size) + 4;
+	}
 
-		public BigDecimal x;
-		public BigDecimal y;
-		public C2ArrayList XN = new C2ArrayList();
-		public List<SizedDouble> XNM3 = new ArrayList<>();
-		public List<Double> XNM3Small = new ArrayList<>();
-		public List<Complex3> XNc = new ArrayList<>();
-		public List<Complex3> XN2 = new ArrayList<>();
-		public List<Complex> XNcSmall = new ArrayList<>();
-		public List<Complex> XN2Small = new ArrayList<>();
-		public List<Complex> XPNSmall = new ArrayList<>();
-//		public List<Complex2> XPN = new ArrayList<>();
-
-
-		public ReferencePoint(BigDecimal x, BigDecimal y, int maxIter, int pre, Complex power) {
-			maxIter += 3;
-			Complex2 c0 = new Complex2(x, y, pre);
-			this.x = x;
-			this.y = y;
-			Complex2 c = new Complex2(x, y, pre);
-			int percent = (0 * 100 / maxIter);
-			for(int i = 0; i < maxIter; i++) {
-				int nPercent = (i * 100 / maxIter);
-				if(percent != nPercent) {
-					percent = nPercent;
-					Viewer.renderInfo.minIter.setText("Getting Reference " + percent + "%");
-				}
-				Complex2 cx2 = c.multiply(2);
-				XN.add(c);
-				XNM3.add(new Complex3(c).mag().multiply(0.001));
-				XNM3Small.add(new Complex(c).mag() * 0.001);
-				XNc.add(new Complex3(c));
-				XN2.add(new Complex3(cx2));
-				XNcSmall.add(new Complex(c));
-				XN2Small.add(new Complex(cx2));
-				c = c.pow(power);
-//				XPN.add(c);
-				XPNSmall.add(new Complex(c));
-				c = c.add(c0);
-				if(helper != MBHelper.this) {
-					lastHelper = MBHelper.this;
-					return;
-				}
-				if(c.magSqu() > 10000) {
-					break;
-				}
+	public void recolor(BufferedImage bi, MBInfo info, ProgressMonitorFactory factory) {
+		while(iterations == null && !interrupted) {
+			try {
+				Thread.sleep(10);
+			} catch (InterruptedException e) {
+				e.printStackTrace();
 			}
-			
 		}
-		
+		if(!interrupted) {
+		drawIterations(iterations, bi, info.getPalette(), info.getIterations());
+		}
 	}
 	
-	public class SeriesApprox{
-
-		public List<Complex3> AN = new ArrayList<>();
-		public List<Complex3> BN = new ArrayList<>();
-		public List<Complex3> CN = new ArrayList<>();
-		public int skipped = 0;
-
-		public SeriesApprox(ReferencePoint rPoint, int pre, ZoomPoint testPoint, Complex power) {
-			double tol = Math.pow(2, -64);
-			Complex2 genTestPoint = testPoint.c.produce();
-			Complex3 delta0 = new Complex3(genTestPoint.subtract(rPoint.XN.get(0)));
-			Complex3 deltaPow2 = delta0.pow(2);
-			Complex3 deltaPow3 = delta0.pow(3);
-			AN.add(new Complex3(1, 0));
-			BN.add(new Complex3(0, 0));
-			CN.add(new Complex3(0, 0));
-			int percent = -1;
-			if(power.x != 2 || power.y != 0) {
-				return;
-			}
-			for(int i = 1; i < rPoint.XN.size(); i++) {
-				int nPercent = (i * 100 / rPoint.XN.size());
-				if(percent != nPercent) {
-					percent = nPercent;
-					Viewer.renderInfo.minIter.setText("Approximating " + percent + "%");
-				}
-				AN.add(AN.get(i - 1).multiply(rPoint.XN2.get(i - 1)).addReal(1));
-				BN.add(BN.get(i - 1).multiply(rPoint.XN2.get(i - 1)).add(AN.get(i - 1).pow(2)));
-				CN.add(CN.get(i - 1).multiply(rPoint.XN2.get(i - 1)).add(AN.get(i - 1).multiply(BN.get(i - 1).multiply(2))));
-				if (((BN.get(i).multiply(deltaPow2)).magSqu().multiply(tol)).compareTo((CN.get(i).multiply(deltaPow3)).magSqu()) < 0) {
-					if (i <= 3) {
-						skipped = 0;
-						return;
-					}
-					else {
-						skipped = (i - 3);
-						return;
-					}
-				}
-			}
-			skipped = 0;
-		}
-		
-	}
-	
-	public int getPeriod(Complex2 c1, Complex2 c2, Complex2 c3, Complex2 c4) {
-		int period = 1;
-		Complex2[] all0 = new Complex2[] {c1, c2, c3, c4};
-		Complex2[] allN = new Complex2[] {c1, c2, c3, c4};
-		while(!containsOrigin(allN[0], allN[1], allN[2], allN[3])) {
-			if(helper != this) {
-				return -1;
-			}
-			Viewer.renderInfo.minIter.setText("Counting period: " + period);
-			Viewer.window.validate();
-			Viewer.window.pack();
-			for(int i = 0; i < all0.length; i++) {
-				allN[i] = allN[i].pow(2).add(all0[i]);
-			}
-			period++;
-		}
-		return period;
-	}
-
-	public double logn(int log, int n) {
-		return Math.log(log) / Math.log(n);
-	}
-
-	public int getPeriod(BigDecimal locX, BigDecimal locY, SizedDouble zoom, int width, int height, int pre) {
-		SizedDouble scale = zoom.multiply(4.0 / height);
-//		SizedDouble scale = new SizedDouble(4).divide(zoom.multiply(height));
-		int zoomMag = -zoom.size + 4;
-		Complex2 c1 = new Complex2((scale.multiply(-width / 2)).asBigDecimal(zoomMag).add(locX), (scale.multiply( height / 2)).asBigDecimal(zoomMag).add(locY), zoomMag);
-		Complex2 c2 = new Complex2((scale.multiply(-width / 2)).asBigDecimal(zoomMag).add(locX), (scale.multiply(-height / 2)).asBigDecimal(zoomMag).add(locY), zoomMag);
-		Complex2 c3 = new Complex2((scale.multiply( width / 2)).asBigDecimal(zoomMag).add(locX), (scale.multiply(-height / 2)).asBigDecimal(zoomMag).add(locY), zoomMag);
-		Complex2 c4 = new Complex2((scale.multiply( width / 2)).asBigDecimal(zoomMag).add(locX), (scale.multiply( height / 2)).asBigDecimal(zoomMag).add(locY), zoomMag);
-		return getPeriod(c1, c2, c3, c4);
-	}
-	
-	public boolean containsOrigin(Complex2 c1, Complex2 c2, Complex2 c3, Complex2 c4) {
-		return (getInt(crossesPositiveRealAxis(c1, c2)) +
-				getInt(crossesPositiveRealAxis(c2, c3)) +
-				getInt(crossesPositiveRealAxis(c3, c4)) +
-				getInt(crossesPositiveRealAxis(c4, c1))) % 2 == 1;
-	}
-
-	private int getInt(boolean tf) {
-		return tf ? 1 : 0;
-	}
-
-	private boolean crossesPositiveRealAxis(Complex2 c1, Complex2 c2) {
-		if(sgn(c1.y) != sgn(c2.y)) {
-			BigDecimal cr = c1.cross(c2);
-			Complex2 dif = c2.subtract(c1);
-			int s = sgn(cr);
-			int t = sgn(dif.y);
-			return s == t;
-		}
-		return false;
-	}
-
-	private int sgn(BigDecimal cr) {
-		return cr.compareTo(BigDecimal.ZERO);
-	}
-
 	public ZoomLoc findMini(MBInfo info, int width, int height, int zoomMod) {
+		interrupted = true;
 		BigDecimal x = info.getX();
-		BigDecimal y = info.getX();
+		BigDecimal y = info.getY();
 		SizedDouble zoom = info.getZoom();
-		int zoomMag = (-zoom.size) * zoomMod + 4;
+		int zoomMag = Math.abs(zoom.size) * zoomMod + 4;
 		int period = this.getPeriod(x, y, zoom, width, height, zoomMag);
 		Viewer.renderInfo.minIter.setText("Period found: " + period);
 		Complex2 miniLoc = getMini(new Complex2(x, y, zoomMag), period);
@@ -719,7 +430,9 @@ public class MBHelper {
 		while(true) {
 			Viewer.renderInfo.minIter.setText("Period: " + period + "Iter: " + y);
 			y++;
-			if(!helper.equals(this)) {
+			try {
+				this.checkShouldKeepRunning();
+			} catch (Exception e) {
 				return null;
 			}
 			Complex2 dc = Complex2.ZERO.setScale(complex2.getScale());
@@ -740,4 +453,61 @@ public class MBHelper {
 		}
 	}
 
+	public int getPeriod(Complex2 c1, Complex2 c2, Complex2 c3, Complex2 c4) {
+		int period = 1;
+		Complex2[] all0 = new Complex2[] {c1, c2, c3, c4};
+		Complex2[] allN = new Complex2[] {c1, c2, c3, c4};
+		while(!containsOrigin(allN[0], allN[1], allN[2], allN[3])) {
+			try {
+				this.checkShouldKeepRunning();
+			} catch (Exception e) {
+				return -1;
+			}
+			Viewer.renderInfo.minIter.setText("Counting period: " + period);
+			Viewer.window.validate();
+			Viewer.window.pack();
+			for(int i = 0; i < all0.length; i++) {
+				allN[i] = allN[i].pow(2).add(all0[i]);
+			}
+			period++;
+		}
+		return period;
+	}
+
+	private boolean containsOrigin(Complex2 c1, Complex2 c2, Complex2 c3, Complex2 c4) {
+		return (getInt(crossesPositiveRealAxis(c1, c2)) +
+				getInt(crossesPositiveRealAxis(c2, c3)) +
+				getInt(crossesPositiveRealAxis(c3, c4)) +
+				getInt(crossesPositiveRealAxis(c4, c1))) % 2 == 1;
+	}
+	
+	private boolean crossesPositiveRealAxis(Complex2 c1, Complex2 c2) {
+		if(sgn(c1.y) != sgn(c2.y)) {
+			BigDecimal cr = c1.cross(c2);
+			Complex2 dif = c2.subtract(c1);
+			int s = sgn(cr);
+			int t = sgn(dif.y);
+			return s == t;
+		}
+		return false;
+	}
+	
+	private int getInt(boolean tf) {
+		return tf ? 1 : 0;
+	}
+	
+	private int sgn(BigDecimal cr) {
+		return cr.compareTo(BigDecimal.ZERO);
+	}
+
+	public int getPeriod(BigDecimal locX, BigDecimal locY, SizedDouble zoom, int width, int height, int pre) {
+		SizedDouble scale = zoom.multiply(4.0 / height);
+//		SizedDouble scale = new SizedDouble(4).divide(zoom.multiply(height));
+		int zoomMag = Math.abs(zoom.size) + 4;
+		Complex2 c1 = new Complex2((scale.multiply(-width / 2)).asBigDecimal(zoomMag).add(locX), (scale.multiply( height / 2)).asBigDecimal(zoomMag).add(locY), zoomMag);
+		Complex2 c2 = new Complex2((scale.multiply(-width / 2)).asBigDecimal(zoomMag).add(locX), (scale.multiply(-height / 2)).asBigDecimal(zoomMag).add(locY), zoomMag);
+		Complex2 c3 = new Complex2((scale.multiply( width / 2)).asBigDecimal(zoomMag).add(locX), (scale.multiply(-height / 2)).asBigDecimal(zoomMag).add(locY), zoomMag);
+		Complex2 c4 = new Complex2((scale.multiply( width / 2)).asBigDecimal(zoomMag).add(locX), (scale.multiply( height / 2)).asBigDecimal(zoomMag).add(locY), zoomMag);
+		return getPeriod(c1, c2, c3, c4);
+	}
 }

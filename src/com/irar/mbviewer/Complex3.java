@@ -1,7 +1,5 @@
 package com.irar.mbviewer;
 
-import java.math.BigDecimal;
-
 public class Complex3 {
 
 	public SizedDouble x;

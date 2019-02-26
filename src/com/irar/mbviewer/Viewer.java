@@ -2,13 +2,12 @@ package com.irar.mbviewer;
 
 import java.awt.BorderLayout;
 import java.awt.Button;
-import java.awt.Canvas;
 import java.awt.Color;
 import java.awt.Dimension;
 import java.awt.Graphics;
-import java.awt.Image;
+import java.awt.Graphics2D;
 import java.awt.MouseInfo;
-import java.awt.Point;
+import java.awt.RenderingHints;
 import java.awt.TextField;
 import java.awt.Toolkit;
 import java.awt.event.ActionEvent;
@@ -17,7 +16,6 @@ import java.awt.event.ItemEvent;
 import java.awt.event.ItemListener;
 import java.awt.event.MouseEvent;
 import java.awt.event.MouseListener;
-import java.awt.image.BufferStrategy;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.FileNotFoundException;
@@ -25,32 +23,27 @@ import java.io.IOException;
 import java.io.PrintWriter;
 import java.math.BigDecimal;
 import java.net.URL;
-import java.text.NumberFormat;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
-import java.util.function.Predicate;
 
 import javax.imageio.ImageIO;
 import javax.swing.BoxLayout;
-import javax.swing.ButtonGroup;
 import javax.swing.JCheckBox;
 import javax.swing.JCheckBoxMenuItem;
 import javax.swing.JFileChooser;
-import javax.swing.JFormattedTextField;
 import javax.swing.JFrame;
 import javax.swing.JLabel;
 import javax.swing.JMenu;
 import javax.swing.JMenuBar;
 import javax.swing.JMenuItem;
 import javax.swing.JPanel;
-import javax.swing.JRadioButton;
 import javax.swing.JTextField;
 import javax.swing.filechooser.FileNameExtensionFilter;
 
 
 
-public class Viewer extends JLabel implements Runnable{
+public class Viewer extends JPanel implements Runnable{
 
 	/**
 	 * 
@@ -71,7 +64,7 @@ public class Viewer extends JLabel implements Runnable{
 	public static int pressedY = 0;
 	public static volatile Thread current = null;
 	public static volatile List<Thread> waitingFR = new ArrayList<>();
-	public static RenderInfo renderInfo = new RenderInfo();
+	public static RenderInfo renderInfo = new RenderInfo(instance);
 	public static TextField iterField;
 	public static boolean hist = false;
 	public static List<Palette> palettes = PaletteSaveHandler.getPaletteData();
@@ -160,6 +153,7 @@ public class Viewer extends JLabel implements Runnable{
 		JMenuBar menuBar = new JMenuBar();
 		JMenu fileMenu = new JMenu("File");
 		JMenu paletteMenu = new JMenu("Palette");
+		JMenu helpMenu = new JMenu("Help");
 		
 		JMenuItem openFile = new JMenuItem("Open");
 		openFile.addActionListener(new OpenF());
@@ -177,7 +171,7 @@ public class Viewer extends JLabel implements Runnable{
 			}else {
 				Viewer.hist = false;
 			}
-			MBHelper.helper.recolor(bi, info.getPalette(), info.getIterations(), Viewer.hist);
+			helper.recolor(bi, info, new ProgressMonitorFactory(renderInfo));
 		});
 		paletteMenu.add(histB);
 		paletteMenu.addSeparator();
@@ -192,8 +186,10 @@ public class Viewer extends JLabel implements Runnable{
 						pButtons.get(i).setSelected(false);
 					}
 				}
-				info.setPalette(palettes.get(index));
-				MBHelper.helper.recolor(bi, info.getPalette(), info.getIterations(), hist);
+				new Thread(() -> {
+					info.setPalette(palettes.get(index));
+					helper.recolor(bi, info, new ProgressMonitorFactory(renderInfo));
+				}).start();
 			}
 		};
 		for(int i = 0; i < palettes.size(); i++) {
@@ -204,14 +200,26 @@ public class Viewer extends JLabel implements Runnable{
 			pButtons.add(pb);
 		}
 		
+		JMenuItem clearCache = new JMenuItem("Clear Cache");
+		clearCache.addActionListener((act) -> {
+			clearCache();
+		});
+		
 		fileMenu.add(openFile);
 		fileMenu.add(saveLoc);
 		fileMenu.add(saveImage);
 		
+		helpMenu.add(clearCache);
+		
 		menuBar.add(fileMenu);
 		menuBar.add(paletteMenu);
+		menuBar.add(helpMenu);
 		
 		window.setJMenuBar(menuBar);
+	}
+
+	private static void clearCache() {
+		C2ArrayList.clearCache();
 	}
 
 	private static void addML(Viewer canvas) {
@@ -294,6 +302,9 @@ public class Viewer extends JLabel implements Runnable{
 					tg.drawImage(bi, 0, 0, null);
 					Graphics g = bi.getGraphics();
 					g.clearRect(0, 0, bi.getWidth(), bi.getHeight());
+					if(g instanceof Graphics2D) {
+						((Graphics2D) g).setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BICUBIC);
+					}
 					if(xGreater) {
 						g.drawImage(tempBI, 0, 0, WIDTH, HEIGHT, pressedX - difX, pressedY - difX, pressedX + difX, pressedY + difX, null);
 					}else {
@@ -526,7 +537,7 @@ public class Viewer extends JLabel implements Runnable{
 		custom3.addActionListener(new ActionListener() {
 			@Override
 			public void actionPerformed(ActionEvent e) {
-				oversample = Integer.parseInt(field3.getText());
+				info.setOversample(Integer.parseInt(field3.getText()));
 				drawFractal(info);
 			}
 		});
@@ -555,7 +566,10 @@ public class Viewer extends JLabel implements Runnable{
 							zoomMod++;
 							failCount++;
 							try {
-								ZoomLoc comp = new MBHelper().findMini(info, resW, resH, zoomMod);
+								if(helper == null) {
+									helper = new MBHelper();
+								}
+								ZoomLoc comp = helper.findMini(info, resW, resH, zoomMod);
 								compLoc = comp.loc;
 								compZoom = comp.zoom;
 								if(comp.loc != null) {
@@ -565,7 +579,6 @@ public class Viewer extends JLabel implements Runnable{
 										info.setX(comp.loc.x);
 										info.setY(comp.loc.y);
 										info.setZoom(comp.zoom);
-										MBHelper.lastHelper = null;
 										drawFractal(info);
 									}
 								}
@@ -653,14 +666,16 @@ public class Viewer extends JLabel implements Runnable{
 		frame.add(panelx, BorderLayout.CENTER);
 	}
 	static Thread thread;
-	protected static int oversample = 1;
 	protected static double blur = 0;
 	protected static boolean shufflePoints = true;
+	protected static MBHelper helper;
 	private static void drawFractal(MBInfo info) {
 		thread = new Thread(new Runnable(){
 			@Override
 			public void run() {
-				new MBHelper().getSetP(bi, info);
+				helper = new MBHelper();
+				helper.getSet(bi, info, new ProgressMonitorFactory(renderInfo));
+				iterField.setText("" + info.getIterations());
 			}
 		});
 		if(current != null) {
@@ -879,14 +894,10 @@ public class Viewer extends JLabel implements Runnable{
 			}
 			if (rVal == JFileChooser.CANCEL_OPTION) {}
 		}
+	}
 
-		private void saveFile(File selectedFile) {
-			try {
-				ImageIO.write(bi, "png", selectedFile);
-			} catch (IOException e) {
-				e.printStackTrace();
-			}
-		}
+	public void pack() {
+		window.pack();
 	}
 
 }
