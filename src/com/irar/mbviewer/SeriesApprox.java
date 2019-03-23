@@ -11,7 +11,7 @@ public class SeriesApprox{
 	public int skipped = 0;
 
 	public SeriesApprox(ReferencePoint rPoint, ZoomPoint testPoint, Complex power, MBHelper helper, IProgressMonitor monitor) throws Exception {
-		double tol = /*Math.pow(2, -64)*/0.0000001d;
+		double tol = Math.pow(2, -64)/*0.0000000000001d*/;
 		Complex2 genTestPoint = testPoint.c.produce();
 		Complex3 delta0 = new Complex3(genTestPoint.subtract(rPoint.XN.get(0)));
 		Complex3 deltaPow2 = delta0.pow(2);
