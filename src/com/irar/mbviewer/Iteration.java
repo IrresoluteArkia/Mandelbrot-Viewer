@@ -1,9 +1,13 @@
 package com.irar.mbviewer;
 
+import java.util.HashMap;
+
 public class Iteration {
 
 	final int iterations;
 	final float partial;
+	
+	private HashMap<String, Double> extraData = new HashMap<>();
 	
 	public Iteration(int iterations, float partial) {
 		while(partial < 0) {
@@ -16,6 +20,14 @@ public class Iteration {
 		}
 		this.iterations = iterations;
 		this.partial = partial;
+	}
+	
+	public HashMap<String, Double> getExtraData(){
+		return this.extraData;
+	}
+	
+	public void setExtraData(HashMap<String, Double> extraData) {
+		this.extraData = extraData;
 	}
 	
 }

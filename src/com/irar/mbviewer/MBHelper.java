@@ -4,6 +4,7 @@ import java.awt.image.BufferedImage;
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Random;
 
@@ -13,8 +14,10 @@ public class MBHelper {
 	
 	Iteration[][][] iterations = null;
 	boolean interrupted = false;
+	private IMBRenderer renderer = null;
 	
-	public void getSet(BufferedImage bi, MBInfo info, IProgressMonitorFactory<?> progressMonitorFactory) {
+	public void getSet(BufferedImage bi, MBInfo info, IProgressMonitorFactory<?> progressMonitorFactory, IMBRenderer renderer) {
+		this.renderer = renderer;
 		int width = bi.getWidth();
 		int height = bi.getHeight();
 		int oversample = info.getOversample();
@@ -26,116 +29,53 @@ public class MBHelper {
 			progressMonitorFactory.deleteAllMonitors();
 			return;
 		}
-		drawIterations(allIterations, bi, info.getPalette(), info.getIterations());
+		try {
+			renderer.drawIterations(allIterations, bi, info);
+		}catch(Exception e) {
+			interrupted = true;
+			progressMonitorFactory.deleteAllMonitors();
+			e.printStackTrace();
+			return;
+		}
 		iterations = allIterations;
 	}
-
-	private void drawIterations(Iteration[][][] iterations, BufferedImage bi, Palette palette, int maxIter) {
-		for(int i = 0; i < iterations.length; i++) {
-			Iteration[][] i2 = iterations[i];
-			for(int j = 0; j < i2.length; j++) {
-				Iteration[] iterSamples = i2[j];
-				int[] sampleColors = getColors(iterSamples, palette, maxIter);
-				setColor(bi, i, j, sampleColors);
-			}
-		}
-	}
 	
-	private void setColor(BufferedImage bi, int x, int y, int[] color) {
-		int totalR = 0;
-		int totalG = 0;
-		int totalB = 0;
-		for(int i = 0; i < color.length; i++) {
-			int r = (color[i] & 0xFF0000) >> 16;
-			int g = (color[i] & 0x00FF00) >> 8;
-			int b = (color[i] & 0x0000FF);
-			totalR += r;
-			totalG += g;
-			totalB += b;
-		}
-		int avgR = totalR / color.length;
-		int avgG = totalG / color.length;
-		int avgB = totalB / color.length;
-		int avg = (avgR << 16) + (avgG << 8) + avgB;
-		bi.setRGB(x, y, avg);
-	}
-
-	private int[] getColors(Iteration[] iterSamples, Palette palette, int maxIter) {
-		int[] colors;
-		if(iterSamples == null) {
-			colors = new int[] {255 * 256 * 256};
-		}else {
-			colors = new int[iterSamples.length];
-			if(iterSamples.length > 0 && iterSamples[0].iterations < maxIter) {
-				for(int i = 0; i < iterSamples.length; i++) {
-					colors[i] = getColor(iterSamples[i], palette);
-				}
-			}
-		}
-		return colors;
-	}
-
-	private int getColor(Iteration iteration, Palette palette) {
-		int[] colors = palette.paletteloop;
-		int color1 = colors[iteration.iterations % colors.length];
-		int color2 = colors[(iteration.iterations + 1) % colors.length];
-		int color = interColors(color1, color2, iteration.partial % 1);
-		return color;
-	}
-
-	private static int rm = 0x00ff0000;
-	private static int gm = 0x0000ff00;
-	private static int bm = 0x000000ff;
-	private int interColors(int color1, int color2, float f) {
-		int red1 = (rm & color1) >> 16;
-		int green1 = (gm & color1) >> 8;
-		int blue1 = (bm & color1);
-		int red2 = (rm & color2) >> 16;
-		int green2 = (gm & color2) >> 8;
-		int blue2 = (bm & color2);
-		int difRed = Math.abs(red1 - red2);
-		int difGreen = Math.abs(green1 - green2);
-		int difBlue = Math.abs(blue1 - blue2);
-		int resRed = (red1 < red2 ? (int) (f * difRed) : (int) ((1 - f) * difRed)) + Math.min(red1, red2);
-		int resGreen = (green1 < green2 ? (int) (f * difGreen) : (int) ((1 - f) * difGreen)) + Math.min(green1, green2);
-		int resBlue = (blue1 < blue2 ? (int) (f * difBlue) : (int) ((1 - f) * difBlue)) + Math.min(blue1, blue2);
-		return (resRed << 16) + (resGreen << 8) + resBlue;
-	}
-
 	private Iteration[][][] iterate(MBInfo info, int width, int height, int samples, IProgressMonitorFactory<?> factory) throws Exception {
 		IProgressMonitor monitor = factory.createNewProgressMonitor();
 		Iteration[][][] iterations = new Iteration[width][height][];
-		ReferencePoint rPoint = getStartingPoint(info, factory);
+		ReferencePoint rPoint;
 		List<ZoomPoint> points = getZoomPoints(info, width, height);
-		SeriesApprox approx = getApproximations(rPoint, points, info, width, height, factory);
+		SeriesApprox approx = null;
 		List<ZoomPoint> repeatPoints = new ArrayList<>();
 		for(ZoomPoint point : points) {
 			point.redo = true;
 		}
-		if(info.getIterations() <= approx.skipped * 20) {
-			info.setIterations(approx.skipped * 20);
-			repeatPoints = points;
-		}else {
-			int current = 0;
-			int done = 0;
-			int end = points.size();
-			for(ZoomPoint point : points) {
-				if(point.redo) {
-					point.redo = false;
-				}
-				iterations[point.x][point.y] = iterate(info, point, rPoint, approx, getZoomMagnitude(info), samples, width, height);
-				if(point.redo) {
-					repeatPoints.add(point);
-				}else {
-					done++;
-				}
-				current++;
-				if(isBadReference(current, points.size(), repeatPoints.size())) {
-					repeatPoints = points;
-					break;
-				}
-				monitor.setProgress((float) done / end);
+		do {
+			if(approx != null) {
+				info.setIterations(approx.skipped * 20);
 			}
+			rPoint = getStartingPoint(info, factory);
+			approx = getApproximations(rPoint, points, info, width, height, factory);
+		}while(info.getIterations() < approx.skipped * 20);
+		int current = 0;
+		int done = 0;
+		int end = points.size();
+		for(ZoomPoint point : points) {
+			if(point.redo) {
+				point.redo = false;
+			}
+			iterations[point.x][point.y] = iterate(info, point, rPoint, approx, getZoomMagnitude(info), samples, width, height);
+			if(point.redo) {
+				repeatPoints.add(point);
+			}else {
+				done++;
+			}
+			current++;
+			if(isBadReference(current, points.size(), repeatPoints.size())) {
+				repeatPoints = points;
+				break;
+			}
+			monitor.setProgress((float) done / end);
 		}
 		if(repeatPoints.size() > 0) {
 			rPoint = null;
@@ -150,7 +90,7 @@ public class MBHelper {
 	private boolean isBadReference(int currentPointNum, int totalPointNum, int redoNum) {
 //		float doneMoreThan = 0.01F;
 		int doneMoreThan = 100;
-		float criticalRedoRatio = 0.5F;
+		float criticalRedoRatio = 0.9F;
 		if(currentPointNum > doneMoreThan) {
 			if((float) redoNum / currentPointNum > criticalRedoRatio) {
 //				System.out.println("Bad reference, recalculating...");
@@ -262,10 +202,14 @@ public class MBHelper {
 			deltaN = new Complex(deltaN2);
 		}
 		double squ = 0;
+		HashMap<String, Double> iterData = new HashMap<>();
 		do{
 			if(curIter < rPoint.XNcSmall.size()) {
 				Complex deltaNtemp = deltaN.multiply(rPoint.XN2Small.get(curIter).add(deltaN)).add(delta0);
 				deltaN = deltaNtemp;
+				if(curIter + 1 < rPoint.XNcSmall.size()) {
+					this.renderer.modifyIterData(iterData, deltaN, rPoint.XNcSmall.get(curIter + 1), curIter);
+				}
 			}else if(curIter < maxIter - 2) {
 				point.redo = true;
 				break;
@@ -286,7 +230,9 @@ public class MBHelper {
 		    double nu = Math.log( log_zn / Math.log(2) ) / Math.log(2);
 		    partial = (float) (1 - nu);
 		}
-		return new Iteration(curIter, partial);
+		Iteration iter = new Iteration(curIter, partial);
+		iter.setExtraData(iterData);
+		return iter;
 	}
 
 	public void checkShouldKeepRunning() throws Exception {
@@ -393,16 +339,16 @@ public class MBHelper {
 			}
 		}
 		if(!interrupted) {
-		drawIterations(iterations, bi, info.getPalette(), info.getIterations());
+			renderer.drawIterations(iterations, bi, info);
 		}
 	}
 	
-	public ZoomLoc findMini(MBInfo info, int width, int height, int zoomMod) {
+	public ZoomLoc findMini(MBInfo info, int width, int height, double zoomMod) {
 		interrupted = true;
 		BigDecimal x = info.getX();
 		BigDecimal y = info.getY();
 		SizedDouble zoom = info.getZoom();
-		int zoomMag = Math.abs(zoom.size) * zoomMod + 4;
+		int zoomMag = (int) (Math.abs(zoom.size) * zoomMod + 4);
 		int period = this.getPeriod(x, y, zoom, width, height, zoomMag);
 		Viewer.renderInfo.minIter.setText("Period found: " + period);
 		Complex2 miniLoc = getMini(new Complex2(x, y, zoomMag), period);

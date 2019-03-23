@@ -145,6 +145,9 @@ public class Viewer extends JPanel implements Runnable{
 				if(iterField != null) {
 					iterField.setText("" + info.getIterations());
 				}
+				if(info.getPalette() == null) {
+					info.setPalette(palettes.get(0));
+				}
 			}
 		}
 	}
@@ -558,36 +561,24 @@ public class Viewer extends JPanel implements Runnable{
 				thread = new Thread(new Runnable(){
 					@Override
 					public void run() {
-						Complex2 compLoc = null;
 						SizedDouble compZoom = SizedDouble.ZERO;
-						int zoomMod = 1;
-						int failCount = 0;
-						while(compLoc == null || compZoom.compareTo(SizedDouble.ZERO) == 0) {
-							zoomMod++;
-							failCount++;
-							try {
-								if(helper == null) {
-									helper = new MBHelper();
-								}
-								ZoomLoc comp = helper.findMini(info, resW, resH, zoomMod);
-								compLoc = comp.loc;
-								compZoom = comp.zoom;
-								if(comp.loc != null) {
-									if(compZoom.compareTo(SizedDouble.ZERO) == 0) {
-										renderInfo.minIter.setText("Failed to find minibrot");
-									}else {
-										info.setX(comp.loc.x);
-										info.setY(comp.loc.y);
-										info.setZoom(comp.zoom);
-										drawFractal(info);
-									}
-								}
-							}catch(Exception e) {
-								failCount++;
+						try {
+							if(helper == null) {
+								helper = new MBHelper();
 							}
-							if(failCount >= 10) {
-								break;
+							ZoomLoc comp = helper.findMini(info, resW, resH, 1.8);
+							compZoom = comp.zoom;
+							if(comp.loc != null) {
+								if(compZoom.compareTo(SizedDouble.ZERO) == 0) {
+									renderInfo.minIter.setText("Failed to find minibrot");
+								}else {
+									info.setX(comp.loc.x);
+									info.setY(comp.loc.y);
+									info.setZoom(comp.zoom);
+									drawFractal(info);
+								}
 							}
+						}catch(Exception e) {
 						}
 						window.validate();
 						window.pack();
@@ -674,7 +665,7 @@ public class Viewer extends JPanel implements Runnable{
 			@Override
 			public void run() {
 				helper = new MBHelper();
-				helper.getSet(bi, info, new ProgressMonitorFactory(renderInfo));
+				helper.getSet(bi, info, new ProgressMonitorFactory(renderInfo), /*new IterationRenderer()*/new CloseOrbitRenderer());
 				iterField.setText("" + info.getIterations());
 			}
 		});

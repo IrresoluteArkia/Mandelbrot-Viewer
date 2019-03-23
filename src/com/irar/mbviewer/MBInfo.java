@@ -10,7 +10,7 @@ public class MBInfo {
 	private SizedDouble zoom = new SizedDouble(1); 
 	private int iterations = 256;
 	private String name = "";
-	private Palette palette;
+	private Palette palette = null;
 	private int oversample = 1;
 	private boolean shufflePoints = false;
 	private Complex power = new Complex(2, 0);
