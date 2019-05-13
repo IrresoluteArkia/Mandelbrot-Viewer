@@ -1,18 +1,26 @@
 package com.irar.mbviewer;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
 public class OversampleIteration {
 
-	private Iteration[] iterations;
+	private List<Iteration> iterations;
 
 	public OversampleIteration(Iteration... iterations) {
-		this.iterations = iterations;
+		this.iterations = new ArrayList<>();
+		for(Iteration i : iterations) {
+			this.iterations.add(i);
+		}
 	}
 
 	public List<Iteration> getIterations() {
-		return Arrays.asList(iterations);
+		return iterations;
+	}
+	
+	public void addIteration(Iteration iteration) {
+		iterations.add(iteration);
 	}
 
 }

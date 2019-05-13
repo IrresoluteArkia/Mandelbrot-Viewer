@@ -21,9 +21,10 @@ public interface IMBRenderer {
 			totalG += g;
 			totalB += b;
 		}
-		int avgR = totalR / color.length;
-		int avgG = totalG / color.length;
-		int avgB = totalB / color.length;
+		int clf = Math.max(1, color.length);
+		int avgR = totalR / clf;
+		int avgG = totalG / clf;
+		int avgB = totalB / clf;
 		int avg = (avgR << 16) + (avgG << 8) + avgB;
 		bi.setRGB(x, y, avg);
 	}

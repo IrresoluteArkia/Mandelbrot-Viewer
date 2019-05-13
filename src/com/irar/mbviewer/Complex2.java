@@ -26,6 +26,12 @@ public class Complex2 {
 		this.pre = pre;
 	}
 
+	public Complex2(Complex3 complex3, int pre) {
+		this.x = complex3.x.asBigDecimal(pre);
+		this.y = complex3.y.asBigDecimal(pre);
+		this.pre = pre;
+	}
+
 	public Complex2 pow(double pow) {
 		if((double) (int) pow == pow && pow >= 2 && pow < 30) {
 			return pow((int) pow);

@@ -2,6 +2,7 @@ package com.irar.mbviewer;
 
 import java.awt.image.BufferedImage;
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -13,7 +14,7 @@ import com.irar.mbviewer.util.RandomUtil;
 public class MBHelper {
 	
 //	Iteration[][][] iterations = null;
-	OversampleIteration[][] iterations = null;
+	static OversampleIteration[][] iterations = null;
 	boolean interrupted = false;
 	private IMBRenderer renderer = null;
 	private static List<ReferencePoint> APR = new ArrayList<>();
@@ -29,6 +30,7 @@ public class MBHelper {
 		}catch(Exception e) {
 			interrupted = true;
 			progressMonitorFactory.deleteAllMonitors();
+			e.printStackTrace();
 			return;
 		}
 		try {
@@ -45,6 +47,7 @@ public class MBHelper {
 	private OversampleIteration[][] iterate(MBInfo info, int width, int height, int samples, IProgressMonitorFactory<?> factory) throws Exception {
 		IProgressMonitor monitor = factory.createNewProgressMonitor();
 		OversampleIteration[][] iterations = new OversampleIteration[width][height];
+		reusePoints(info, width, height, iterations);
 		ReferencePoint rPoint;
 		List<ZoomPoint> points = getZoomPoints(info, width, height);
 		SeriesApprox approx = null;
@@ -66,7 +69,7 @@ public class MBHelper {
 			if(point.redo) {
 				point.redo = false;
 			}
-			iterations[point.x][point.y] = iterate(info, point, rPoint, approx, getZoomMagnitude(info), samples, width, height);
+			iterations[point.x][point.y] = iterate(info, point, rPoint, approx, getZoomMagnitude(info), samples, width, height, iterations[point.x][point.y]);
 			if(point.redo) {
 				repeatPoints.add(point);
 			}else {
@@ -87,6 +90,73 @@ public class MBHelper {
 		}
 		monitor.deleteMonitor();
 		return iterations;
+	}
+
+	private void reusePoints(MBInfo info, int width, int height, OversampleIteration[][] newIterations) {
+		int zoomMag = this.getZoomMagnitude(info);
+		SizedDouble scale = info.getZoom().multiply(4.0 / height);
+		Complex2 base = new Complex2(info.getX(), info.getY(), zoomMag);
+		BigDecimal xMin = scale.multiply(-width / 2)
+				.asBigDecimal(zoomMag)
+				.add(info.getX()
+						.setScale(zoomMag, BigDecimal.ROUND_DOWN))
+				.setScale(zoomMag, BigDecimal.ROUND_DOWN);
+		BigDecimal xMax = scale.multiply(width / 2)
+				.asBigDecimal(zoomMag)
+				.add(info.getX()
+						.setScale(zoomMag, BigDecimal.ROUND_DOWN))
+				.setScale(zoomMag, BigDecimal.ROUND_DOWN);
+		BigDecimal yMin = scale.multiply(-height / 2)
+				.asBigDecimal(zoomMag)
+				.add(info.getY()
+						.setScale(zoomMag, BigDecimal.ROUND_DOWN))
+				.setScale(zoomMag, BigDecimal.ROUND_DOWN);
+		BigDecimal yMax = scale.multiply(height / 2)
+				.asBigDecimal(zoomMag)
+				.add(info.getY()
+						.setScale(zoomMag, BigDecimal.ROUND_DOWN))
+				.setScale(zoomMag, BigDecimal.ROUND_DOWN);
+		SizedDouble xDif = SizedDouble.parseSizedDouble(xMax.subtract(xMin));
+		SizedDouble yDif = SizedDouble.parseSizedDouble(yMax.subtract(yMin));
+		for(int i = 0; i < newIterations.length; i++) {
+			for(int j = 0; j < newIterations[i].length; j++) {
+				newIterations[i][j] = new OversampleIteration();
+			}
+		}
+		if(iterations != null) {
+			int reused = 0;
+			for(int i = 0; i < iterations.length; i++) {
+				for(int j = 0; j < iterations[i].length; j++) {
+					OversampleIteration oi = iterations[i][j];
+					for(Iteration iter : oi.getIterations()) {
+						if(iter.iterations == iter.getMaxIter() && iter.getMaxIter() < info.getIterations()) {
+							continue;
+						}
+						Complex2 loc = iter.getActualLocation();
+						BigDecimal x = loc.x;
+						BigDecimal y = loc.y;
+						if(x.compareTo(xMin) >= 0 && x.compareTo(xMax) <= 0 && y.compareTo(yMin) >= 0 && y.compareTo(yMax) <= 0) {
+							SizedDouble iterXDif = SizedDouble.parseSizedDouble(x.subtract(xMin));
+							SizedDouble iterYDif = SizedDouble.parseSizedDouble(y.subtract(yMin));
+							double locXD = iterXDif.divide(xDif).asDouble();
+							double locYD = iterYDif.divide(yDif).asDouble();
+							int locX = limit((int) (locXD * newIterations.length), 0, newIterations.length-1);
+							int locY = limit((int) (locYD * newIterations[0].length), 0, newIterations[0].length-1);
+							if(newIterations[locX][locY].getIterations().size() < info.getOversample()) {
+								iter.changeBaseLocation(base);
+								newIterations[locX][locY].addIteration(iter);
+								reused++;
+							}
+						}
+					}
+				}
+			}
+			System.out.println("Reused " + reused + " points of data");
+		}
+	}
+
+	private int limit(int i, int min, int max) {
+		return Math.min(max, Math.max(min, i));
 	}
 
 	private boolean isBadReference(int currentPointNum, int totalPointNum, int redoNum) {
@@ -121,7 +191,7 @@ public class MBHelper {
 			for(ZoomPoint point : points) {
 				if(point.redo) {
 					point.redo = false;
-					iterations2[point.x][point.y] = iterate(info, point, rPoint, approx, getZoomMagnitude(info), samples, width, height);
+					iterations2[point.x][point.y] = iterate(info, point, rPoint, approx, getZoomMagnitude(info), samples, width, height, iterations2[point.x][point.y]);
 				}
 				if(point.redo) {
 					repeatPoints.add(point);
@@ -155,19 +225,20 @@ public class MBHelper {
 	}
 
 	private OversampleIteration iterate(MBInfo info, ZoomPoint point, ReferencePoint rPoint, SeriesApprox approx, int zoomMagnitude,
-			int samples, int width, int height) throws Exception {
+			int samples, int width, int height, OversampleIteration oi) throws Exception {
 		ZoomPoint pointI = deviateRandomly(point, width, height, info.getZoom(), zoomMagnitude);
-		Iteration[] iterations = new Iteration[samples];
-		for(int i = 0; i < samples; i++) {
-			iterations[i] = iterate(info, pointI, rPoint, approx, zoomMagnitude);
+		for(int i = oi.getIterations().size(); i < samples; i++) {
+			Iteration iteration = iterate(info, pointI, rPoint, approx, zoomMagnitude);
 			if(pointI.redo) {
 				point.redo = true;
 				continue;
-			}else if(iterations[i].iterations == info.getIterations()) {
-				return new OversampleIteration(new Iteration[] {iterations[i]});
+			}else if(iteration.iterations == info.getIterations()) {
+				oi.addIteration(iteration);
+				return oi;
 			}
+			oi.addIteration(iteration);
 		}
-		return new OversampleIteration(iterations);
+		return oi;
 	}
 
 	private ZoomPoint deviateRandomly(ZoomPoint point, int width, int height, SizedDouble zoom, int zoomMag) {
@@ -234,7 +305,7 @@ public class MBHelper {
 		    double nu = Math.log( log_zn / Math.log(2) ) / Math.log(2);
 		    partial = (float) (1 - nu);
 		}
-		Iteration iter = new Iteration(curIter, partial);
+		Iteration iter = new Iteration(curIter, partial, maxIter, new Complex2(rPoint.x, rPoint.y, zoomMagnitude), new Complex3(delta0));
 		iter.setExtraData(iterData);
 		return iter;
 	}
@@ -283,7 +354,7 @@ public class MBHelper {
 		    double nu = Math.log( log_zn / Math.log(2) ) / Math.log(2);
 		    partial = (float) (1 - nu);
 		}
-		return new Iteration(curIter, partial);
+		return new Iteration(curIter, partial, maxIter, new Complex2(rPoint.x, rPoint.y, zoomMagnitude), delta0);
 	}
 
 	private SeriesApprox getApproximations(ReferencePoint rPoint, List<ZoomPoint> points, MBInfo info, int width, int height, IProgressMonitorFactory<?> factory) throws Exception {
