@@ -5,7 +5,7 @@ import java.util.HashMap;
 
 public interface IMBRenderer {
 
-	public void drawIterations(Iteration[][][] allIterations, BufferedImage bi, MBInfo info);
+	public void drawIterations(OversampleIteration[][] allIterations, BufferedImage bi, MBInfo info);
 
 	public void modifyIterData(HashMap<String, Double> iterData, Complex delta, Complex x, int curIter);
 	

@@ -12,7 +12,8 @@ import com.irar.mbviewer.util.RandomUtil;
 
 public class MBHelper {
 	
-	Iteration[][][] iterations = null;
+//	Iteration[][][] iterations = null;
+	OversampleIteration[][] iterations = null;
 	boolean interrupted = false;
 	private IMBRenderer renderer = null;
 	private static List<ReferencePoint> APR = new ArrayList<>();
@@ -22,7 +23,7 @@ public class MBHelper {
 		int width = bi.getWidth();
 		int height = bi.getHeight();
 		int oversample = info.getOversample();
-		Iteration[][][] allIterations = null;
+		OversampleIteration[][] allIterations = null;
 		try {
 			allIterations = iterate(info, width, height, oversample, progressMonitorFactory);
 		}catch(Exception e) {
@@ -41,9 +42,9 @@ public class MBHelper {
 		iterations = allIterations;
 	}
 	
-	private Iteration[][][] iterate(MBInfo info, int width, int height, int samples, IProgressMonitorFactory<?> factory) throws Exception {
+	private OversampleIteration[][] iterate(MBInfo info, int width, int height, int samples, IProgressMonitorFactory<?> factory) throws Exception {
 		IProgressMonitor monitor = factory.createNewProgressMonitor();
-		Iteration[][][] iterations = new Iteration[width][height][];
+		OversampleIteration[][] iterations = new OversampleIteration[width][height];
 		ReferencePoint rPoint;
 		List<ZoomPoint> points = getZoomPoints(info, width, height);
 		SeriesApprox approx = null;
@@ -101,9 +102,9 @@ public class MBHelper {
 		return false;
 	}
 
-	private void repeatIteration(MBInfo info, List<ZoomPoint> points, Iteration[][][] iterations, int samples,
+	private void repeatIteration(MBInfo info, List<ZoomPoint> points, OversampleIteration[][] iterations2, int samples,
 			IProgressMonitorFactory<?> factory, IProgressMonitor progressMonitor, int repeatNum, int width, int height) throws Exception {
-		int end = iterations.length * iterations[0].length;
+		int end = iterations2.length * iterations2[0].length;
 		int current = end - points.size();
 		int done = current;
 		int currentR = 0;
@@ -120,7 +121,7 @@ public class MBHelper {
 			for(ZoomPoint point : points) {
 				if(point.redo) {
 					point.redo = false;
-					iterations[point.x][point.y] = iterate(info, point, rPoint, approx, getZoomMagnitude(info), samples, width, height);
+					iterations2[point.x][point.y] = iterate(info, point, rPoint, approx, getZoomMagnitude(info), samples, width, height);
 				}
 				if(point.redo) {
 					repeatPoints.add(point);
@@ -140,7 +141,7 @@ public class MBHelper {
 			rPoint = null;
 			approx = null;
 			points = null;
-			repeatIteration(info, repeatPoints, iterations, samples, factory, progressMonitor, repeatNum + 1, width, height);
+			repeatIteration(info, repeatPoints, iterations2, samples, factory, progressMonitor, repeatNum + 1, width, height);
 		}
 	}
 
@@ -153,7 +154,7 @@ public class MBHelper {
 		return chosen;
 	}
 
-	private Iteration[] iterate(MBInfo info, ZoomPoint point, ReferencePoint rPoint, SeriesApprox approx, int zoomMagnitude,
+	private OversampleIteration iterate(MBInfo info, ZoomPoint point, ReferencePoint rPoint, SeriesApprox approx, int zoomMagnitude,
 			int samples, int width, int height) throws Exception {
 		ZoomPoint pointI = deviateRandomly(point, width, height, info.getZoom(), zoomMagnitude);
 		Iteration[] iterations = new Iteration[samples];
@@ -163,10 +164,10 @@ public class MBHelper {
 				point.redo = true;
 				continue;
 			}else if(iterations[i].iterations == info.getIterations()) {
-				return new Iteration[] {iterations[i]};
+				return new OversampleIteration(new Iteration[] {iterations[i]});
 			}
 		}
-		return iterations;
+		return new OversampleIteration(iterations);
 	}
 
 	private ZoomPoint deviateRandomly(ZoomPoint point, int width, int height, SizedDouble zoom, int zoomMag) {

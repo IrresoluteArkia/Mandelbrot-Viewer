@@ -2,30 +2,32 @@ package com.irar.mbviewer;
 
 import java.awt.image.BufferedImage;
 import java.util.HashMap;
+import java.util.List;
 
 public class IterationRenderer implements IMBRenderer{
 
 	@Override
-	public void drawIterations(Iteration[][][] iterations, BufferedImage bi, MBInfo info) {
+	public void drawIterations(OversampleIteration[][] iterations, BufferedImage bi, MBInfo info) {
 		for(int i = 0; i < iterations.length; i++) {
-			Iteration[][] i2 = iterations[i];
+			OversampleIteration[] i2 = iterations[i];
 			for(int j = 0; j < i2.length; j++) {
-				Iteration[] iterSamples = i2[j];
+				OversampleIteration iterSamples = i2[j];
 				int[] sampleColors = getColors(iterSamples, info.getPalette(), info.getIterations());
 				setColor(bi, i, j, sampleColors);
 			}
 		}
 	}
 
-	private int[] getColors(Iteration[] iterSamples, Palette palette, int maxIter) {
+	private int[] getColors(OversampleIteration iteration, Palette palette, int maxIter) {
+		List<Iteration> iterSamples = iteration.getIterations();
 		int[] colors;
 		if(iterSamples == null) {
 			colors = new int[] {255 * 256 * 256};
 		}else {
-			colors = new int[iterSamples.length];
-			if(iterSamples.length > 0 && iterSamples[0].iterations < maxIter) {
-				for(int i = 0; i < iterSamples.length; i++) {
-					colors[i] = getColor(iterSamples[i], palette);
+			colors = new int[iterSamples.size()];
+			if(iterSamples.size() > 0 && iterSamples.get(0).iterations < maxIter) {
+				for(int i = 0; i < iterSamples.size(); i++) {
+					colors[i] = getColor(iterSamples.get(i), palette);
 				}
 			}
 		}
