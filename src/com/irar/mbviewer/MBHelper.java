@@ -15,6 +15,7 @@ public class MBHelper {
 	Iteration[][][] iterations = null;
 	boolean interrupted = false;
 	private IMBRenderer renderer = null;
+	private static List<ReferencePoint> APR = new ArrayList<>();
 	
 	public void getSet(BufferedImage bi, MBInfo info, IProgressMonitorFactory<?> progressMonitorFactory, IMBRenderer renderer) {
 		this.renderer = renderer;
@@ -54,7 +55,7 @@ public class MBHelper {
 			if(approx != null) {
 				info.setIterations(approx.skipped * 20);
 			}
-			rPoint = getStartingPoint(info, factory);
+			rPoint = getStartingPoint(info, factory, width, height);
 			approx = getApproximations(rPoint, points, info, width, height, factory);
 		}while(info.getIterations() < approx.skipped * 20);
 		int current = 0;
@@ -147,7 +148,9 @@ public class MBHelper {
 		ZoomPoint point = RandomUtil.pickOne(points);
 		points.remove(point);
 		Complex2 chosenLoc = point.c.produce();
-		return new ReferencePoint(chosenLoc.x, chosenLoc.y, info.getIterations(), getZoomMagnitude(info), info.getPower(), this, factory.createNewProgressMonitor());
+		ReferencePoint chosen = new ReferencePoint(chosenLoc.x, chosenLoc.y, info.getIterations(), getZoomMagnitude(info), info.getPower(), this, factory.createNewProgressMonitor());
+		APR.add(chosen);
+		return chosen;
 	}
 
 	private Iteration[] iterate(MBInfo info, ZoomPoint point, ReferencePoint rPoint, SeriesApprox approx, int zoomMagnitude,
@@ -322,10 +325,58 @@ public class MBHelper {
 		return points;
 	}
 
-	private ReferencePoint getStartingPoint(MBInfo info, IProgressMonitorFactory<?> factory) throws Exception {
-		return new ReferencePoint(info.getX(), info.getY(), info.getIterations(), getZoomMagnitude(info), info.getPower(), this, factory.createNewProgressMonitor());
+	private ReferencePoint getStartingPoint(MBInfo info, IProgressMonitorFactory<?> factory, int width, int height) throws Exception {
+		weedAPR(info, width, height);
+		if(APR.size() > 0) {
+			ReferencePoint selected = null;
+			for(ReferencePoint pr : APR) {
+				if(selected == null || pr.XN.size() > selected.XN.size()) {
+					selected = pr;
+				}
+			}
+			System.out.println("Found relavent reference point, reusing...");
+			return selected;
+		}
+		System.out.println("No relavent reference point found, using center...");
+		ReferencePoint def = new ReferencePoint(info.getX(), info.getY(), info.getIterations(), getZoomMagnitude(info), info.getPower(), this, factory.createNewProgressMonitor());
+		APR.add(def);
+		return def;
 	}
 	
+	private void weedAPR(MBInfo info, int width, int height) {
+		float reuseDistance = 1.2f;
+		int zoomMag = this.getZoomMagnitude(info);
+		SizedDouble scale = info.getZoom().multiply(4.0 / height);
+		BigDecimal xMin = scale.multiply(reuseDistance * -width / 2)
+				.asBigDecimal(zoomMag)
+				.add(info.getX()
+						.setScale(zoomMag, BigDecimal.ROUND_DOWN))
+				.setScale(zoomMag, BigDecimal.ROUND_DOWN);
+		BigDecimal xMax = scale.multiply(reuseDistance * width / 2)
+				.asBigDecimal(zoomMag)
+				.add(info.getX()
+						.setScale(zoomMag, BigDecimal.ROUND_DOWN))
+				.setScale(zoomMag, BigDecimal.ROUND_DOWN);
+		BigDecimal yMin = scale.multiply(reuseDistance * -height / 2)
+				.asBigDecimal(zoomMag)
+				.add(info.getY()
+						.setScale(zoomMag, BigDecimal.ROUND_DOWN))
+				.setScale(zoomMag, BigDecimal.ROUND_DOWN);
+		BigDecimal yMax = scale.multiply(reuseDistance * height / 2)
+				.asBigDecimal(zoomMag)
+				.add(info.getY()
+						.setScale(zoomMag, BigDecimal.ROUND_DOWN))
+				.setScale(zoomMag, BigDecimal.ROUND_DOWN);
+		List<ReferencePoint> remove = new ArrayList<>();
+		APR.forEach((pr) -> {
+			if(pr.x.compareTo(xMin) < 0 || pr.x.compareTo(xMax) > 0 || pr.y.compareTo(yMin) < 0 || pr.y.compareTo(yMax) > 0) {
+				remove.add(pr);
+			}
+		});
+		System.out.println("Weeded " + remove.size() + " irrelavent reference points");
+		APR.removeAll(remove);
+	}
+
 	private int getZoomMagnitude(MBInfo info){
 		return Math.abs(info.getZoom().size) + 4;
 	}

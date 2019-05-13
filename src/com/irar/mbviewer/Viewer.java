@@ -665,7 +665,7 @@ public class Viewer extends JPanel implements Runnable{
 			@Override
 			public void run() {
 				helper = new MBHelper();
-				helper.getSet(bi, info, new ProgressMonitorFactory(renderInfo), /*new IterationRenderer()*/new CloseOrbitRenderer());
+				helper.getSet(bi, info, new ProgressMonitorFactory(renderInfo), /*new IterationRenderer()*/new IterationRenderer());
 				iterField.setText("" + info.getIterations());
 			}
 		});
