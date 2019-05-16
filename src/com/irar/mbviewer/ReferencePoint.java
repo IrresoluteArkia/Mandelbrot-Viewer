@@ -8,6 +8,7 @@ public class ReferencePoint{
 
 	public BigDecimal x;
 	public BigDecimal y;
+	public Complex2 loc;
 	public C2ArrayList XN = new C2ArrayList();
 	public List<SizedDouble> XNM3 = new ArrayList<>();
 	public List<Double> XNM3Small = new ArrayList<>();
@@ -24,6 +25,7 @@ public class ReferencePoint{
 		Complex2 c0 = new Complex2(x, y, pre);
 		this.x = x;
 		this.y = y;
+		this.loc = new Complex2(x, y, pre);
 		Complex2 c = new Complex2(x, y, pre);
 		int percent = (0 * 100 / maxIter);
 		for(int i = 0; i < maxIter; i++) {

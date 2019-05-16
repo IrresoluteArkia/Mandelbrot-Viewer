@@ -97,7 +97,7 @@ public class Viewer extends JPanel implements Runnable{
 			}catch(Exception e2) {}
 		}
 		
-		window = new JFrame("Viewer");
+		window = new JFrame("Mandelbrot Set Viewer");
 		
 		
 		window.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);

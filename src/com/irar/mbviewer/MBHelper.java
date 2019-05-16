@@ -305,7 +305,7 @@ public class MBHelper {
 		    double nu = Math.log( log_zn / Math.log(2) ) / Math.log(2);
 		    partial = (float) (1 - nu);
 		}
-		Iteration iter = new Iteration(curIter, partial, maxIter, new Complex2(rPoint.x, rPoint.y, zoomMagnitude), new Complex3(delta0));
+		Iteration iter = new Iteration(curIter, partial, maxIter, rPoint.loc, new Complex3(delta0));
 		iter.setExtraData(iterData);
 		return iter;
 	}
@@ -354,7 +354,7 @@ public class MBHelper {
 		    double nu = Math.log( log_zn / Math.log(2) ) / Math.log(2);
 		    partial = (float) (1 - nu);
 		}
-		return new Iteration(curIter, partial, maxIter, new Complex2(rPoint.x, rPoint.y, zoomMagnitude), delta0);
+		return new Iteration(curIter, partial, maxIter, rPoint.loc, delta0);
 	}
 
 	private SeriesApprox getApproximations(ReferencePoint rPoint, List<ZoomPoint> points, MBInfo info, int width, int height, IProgressMonitorFactory<?> factory) throws Exception {
