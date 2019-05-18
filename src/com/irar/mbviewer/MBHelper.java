@@ -17,10 +17,14 @@ public class MBHelper {
 	static OversampleIteration[][] iterations = null;
 	boolean interrupted = false;
 	private IMBRenderer renderer = null;
+	private BufferedImage bi;
+	private MBInfo info;
 	private static List<ReferencePoint> APR = new ArrayList<>();
 	
 	public void getSet(BufferedImage bi, MBInfo info, IProgressMonitorFactory<?> progressMonitorFactory, IMBRenderer renderer) {
 		this.renderer = renderer;
+		this.bi = bi;
+		this.info = info;
 		int width = bi.getWidth();
 		int height = bi.getHeight();
 		int oversample = info.getOversample();
@@ -33,15 +37,18 @@ public class MBHelper {
 			e.printStackTrace();
 			return;
 		}
+		iterations = allIterations;
+		render();
+	}
+	
+	private void render() {
 		try {
-			renderer.drawIterations(allIterations, bi, info);
+			renderer.drawIterations(iterations, bi, info);
 		}catch(Exception e) {
-			interrupted = true;
-			progressMonitorFactory.deleteAllMonitors();
+//			interrupted = true;
 			e.printStackTrace();
 			return;
 		}
-		iterations = allIterations;
 	}
 	
 	private OversampleIteration[][] iterate(MBInfo info, int width, int height, int samples, IProgressMonitorFactory<?> factory) throws Exception {
@@ -211,8 +218,135 @@ public class MBHelper {
 			rPoint = null;
 			approx = null;
 			points = null;
+			if(repeatPoints.size() < end/20) {
+				clusterIteration(info, repeatPoints, iterations2, samples, factory, progressMonitor, repeatNum + 1, width, height);
+			}
 			repeatIteration(info, repeatPoints, iterations2, samples, factory, progressMonitor, repeatNum + 1, width, height);
 		}
+	}
+	
+	private void clusterIteration(MBInfo info, List<ZoomPoint> points, OversampleIteration[][] iterations2, int samples,
+			IProgressMonitorFactory<?> factory, IProgressMonitor progressMonitor, int repeatNum, int width, int height) throws Exception {
+		iterations = iterations2;
+		render();
+		int end = iterations2.length * iterations2[0].length;
+		int current = end - points.size();
+		int done = current;
+		int currentR = 0;
+		if (repeatNum >= 100/* || (remaining < (end / 10000) && repeatNum > 10) */) {
+			return;
+		}
+		List<Cluster> clusters = getClusters(points, width, height);
+		System.out.println("Splitting into " + clusters.size() + " clusters");
+		List<ZoomPoint> repeatPoints = new ArrayList<>();
+		for(Cluster cluster : clusters) {
+			List<ZoomPoint> clusterPoints = cluster.getPoints();
+			ZoomPoint rLoc = cluster.getReferenceLoc();
+			ReferencePoint rPoint = getReference(rLoc, info, factory);
+			SeriesApprox approx = getApproximations(rPoint, clusterPoints, info, cluster.getWidth(), cluster.getHeight(), factory);
+			if(info.getIterations() < approx.skipped * 10) {
+				info.setIterations(approx.skipped * 10);
+				repeatPoints.addAll(clusterPoints);
+			}else {
+				for(ZoomPoint point : clusterPoints) {
+					if(point.equals(rLoc)) {
+						iterations2[point.x][point.y].addIteration(new Iteration(rPoint.XN.size(), 0, info.getIterations(), rPoint.loc, new Complex3(0, 0)));
+					}
+					if(point.redo) {
+						point.redo = false;
+						iterations2[point.x][point.y] = iterate(info, point, rPoint, approx, getZoomMagnitude(info), samples, width, height, iterations2[point.x][point.y]);
+					}
+					if(point.redo) {
+						repeatPoints.add(point);
+					}else {
+						done++;
+					}
+					current++;
+					currentR++;
+//					if(isBadReference(currentR, clusterPoints.size(), repeatPoints.size())) {
+//						repeatPoints = clusterPoints;
+//						break;
+//					}
+					progressMonitor.setProgress((float) done / end);
+				}
+			}
+		}
+		if(repeatPoints.size() > 0) {
+			points = null;
+			clusterIteration(info, repeatPoints, iterations2, samples, factory, progressMonitor, repeatNum + 1, width, height);
+		}
+	}
+
+	private List<Cluster> getClusters(List<ZoomPoint> points, int width, int height) {
+		int maxSize = 0;
+		List<Cluster> clusters = new ArrayList<>();
+		ZoomPoint[][] pointArray = new ZoomPoint[width][height];
+		boolean[][] visited = new boolean[width][height];
+		for(ZoomPoint point : points) {
+			pointArray[point.x][point.y] = point;
+		}
+		for(int i = 0; i < width; i++) {
+			for(int j = 0; j < height; j++) {
+				if(pointArray[i][j] != null && !visited[i][j]) {
+					List<ZoomPoint> clusterPoints = new ArrayList<>();
+					clusterPoints.add(pointArray[i][j]);
+					recursiveCluster(i, j, clusterPoints, pointArray, visited, 0);
+					Cluster cluster = new Cluster(clusterPoints);
+					if(cluster.getPoints().size() > maxSize) {
+						maxSize = cluster.getPoints().size();
+					}
+					clusters.add(cluster);
+				}else {
+					visited[i][j] = true;
+				}
+			}
+		}
+		System.out.println("Max cluster size: " + maxSize);
+		return clusters;
+	}
+
+	private void recursiveCluster(int startX, int startY, List<ZoomPoint> clusterPoints, ZoomPoint[][] pointArray, boolean[][] visited, int depth) {
+		visited[startX][startY] = true;
+		int combineRadius = 4;
+		int width = visited.length;
+		int height = visited[0].length;
+		List<int[]> spreadLocs = new ArrayList<>();
+		spreadLocs.add(new int[] {startX, startY});
+		while(spreadLocs.size() > 0) {
+			List<int[]> newLocs = new ArrayList<>(1000);
+			for(int[] sloc : spreadLocs) {
+				int i = sloc[0];
+				int j = sloc[1];
+				List<int[]> addLocs = new ArrayList<>((combineRadius*2+1)*(combineRadius*2+1));
+				for(int i2 = i-combineRadius; i2 <= i+combineRadius; i2++) {
+					for(int j2 = j-combineRadius; j2 <= j+combineRadius; j2++) {
+						if(i == i2 && j == j2) {
+							continue;
+						}
+						addLocs.add(new int[] {i2, j2});
+					}
+				}
+//				int[][] addLocs = new int[][] {new int[] {i+1, j}, new int[] {i-1, j}, new int[] {i, j+1}, new int[] {i, j-1}, new int[] {i+1, j+1}, new int[] {i-1, j-1}, new int[] {i-1, j+1}, new int[] {i+1, j-1}, new int[] {i-2, j}, new int[] {i-2, j+1}, new int[] {i-2, j-1}, new int[] {i+2, j}, new int[] {i+2, j+1}, new int[] {i+2, j-1}, new int[] {i, j-2}, new int[] {i+1, j-2}, new int[] {i-1, j-2}, new int[] {i, j+2}, new int[] {i+1, j+2}, new int[] {i-1, j+2}};
+				for(int[] loc : addLocs) {
+					int x = loc[0];
+					int y = loc[1];
+					if(boundsCheck(x, y, width, height) && pointArray[x][y] != null && !visited[x][y]) {
+						clusterPoints.add(pointArray[x][y]);
+						if(depth > 150) {
+							return;
+						}
+						visited[x][y] = true;
+						newLocs.add(new int[] {x, y});
+//						recursiveCluster(x, y, clusterPoints, pointArray, visited, depth+1);
+					}
+				}
+			}
+			spreadLocs = newLocs;
+		}
+	}
+
+	private boolean boundsCheck(int x, int y, int width, int height) {
+		return x >= 0 && y >= 0 && x < width && y < height;
 	}
 
 	private ReferencePoint getRandomReference(List<ZoomPoint> points, MBInfo info, IProgressMonitorFactory<?> factory) throws Exception {
@@ -221,6 +355,13 @@ public class MBHelper {
 		Complex2 chosenLoc = point.c.produce();
 		ReferencePoint chosen = new ReferencePoint(chosenLoc.x, chosenLoc.y, info.getIterations(), getZoomMagnitude(info), info.getPower(), this, factory.createNewProgressMonitor());
 		APR.add(chosen);
+		return chosen;
+	}
+
+	private ReferencePoint getReference(ZoomPoint referenceLoc, MBInfo info, IProgressMonitorFactory<?> factory) throws Exception {
+		Complex2 chosenLoc = referenceLoc.c.produce();
+		ReferencePoint chosen = new ReferencePoint(chosenLoc.x, chosenLoc.y, info.getIterations(), getZoomMagnitude(info), info.getPower(), this, factory.createNewProgressMonitor());
+//		APR.add(chosen);
 		return chosen;
 	}
 
@@ -360,8 +501,8 @@ public class MBHelper {
 	private SeriesApprox getApproximations(ReferencePoint rPoint, List<ZoomPoint> points, MBInfo info, int width, int height, IProgressMonitorFactory<?> factory) throws Exception {
 		ZoomPoint testPoint = new ZoomPoint(0, 0, () -> {
 			int zoomMag = this.getZoomMagnitude(info);
-			BigDecimal x = info.getX().add(info.getZoom().divide(width / 2).asBigDecimal(zoomMag));
-			BigDecimal y = info.getY().add(info.getZoom().divide(height / 2).asBigDecimal(zoomMag));
+			BigDecimal x = info.getX().add(info.getZoom().divide((float) width / 2).asBigDecimal(zoomMag));
+			BigDecimal y = info.getY().add(info.getZoom().divide((float) height / 2).asBigDecimal(zoomMag));
 			return new Complex2(x, y, zoomMag);
 		});
 		return new SeriesApprox(rPoint, testPoint, info.getPower(), this, factory.createNewProgressMonitor());
@@ -416,7 +557,7 @@ public class MBHelper {
 	}
 	
 	private void weedAPR(MBInfo info, int width, int height) {
-		float reuseDistance = 1.2f;
+		float reuseDistance = 0.8f;
 		int zoomMag = this.getZoomMagnitude(info);
 		SizedDouble scale = info.getZoom().multiply(4.0 / height);
 		BigDecimal xMin = scale.multiply(reuseDistance * -width / 2)
