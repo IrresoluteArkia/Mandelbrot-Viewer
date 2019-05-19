@@ -41,6 +41,10 @@ import javax.swing.JPanel;
 import javax.swing.JTextField;
 import javax.swing.filechooser.FileNameExtensionFilter;
 
+import net.arikia.dev.drpc.DiscordEventHandlers;
+import net.arikia.dev.drpc.DiscordEventHandlers.Builder;
+import net.arikia.dev.drpc.DiscordRPC;
+
 
 
 public class Viewer extends JPanel implements Runnable{
@@ -130,6 +134,7 @@ public class Viewer extends JPanel implements Runnable{
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
+		DiscordHandler.setup();
 		window.setIconImage(img);
 		instance.start();
 		
@@ -661,6 +666,7 @@ public class Viewer extends JPanel implements Runnable{
 	protected static boolean shufflePoints = true;
 	protected static MBHelper helper;
 	private static void drawFractal(MBInfo info) {
+		DiscordHandler.createNewPresence(info);
 		thread = new Thread(new Runnable(){
 			@Override
 			public void run() {
