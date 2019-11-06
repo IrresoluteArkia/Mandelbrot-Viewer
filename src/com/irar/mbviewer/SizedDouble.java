@@ -1,6 +1,7 @@
 package com.irar.mbviewer;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 
 public class SizedDouble {
 
@@ -168,7 +169,7 @@ public class SizedDouble {
 	}
 
 	public BigDecimal asBigDecimal(int pre) {
-		return new BigDecimal(this.toString()).setScale(pre, BigDecimal.ROUND_DOWN);
+		return new BigDecimal(this.toString()).setScale(pre, RoundingMode.DOWN);
 	}
 
 	public SizedDouble divide(double d) {

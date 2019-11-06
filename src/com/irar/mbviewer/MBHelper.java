@@ -99,23 +99,23 @@ public class MBHelper {
 		BigDecimal xMin = scale.multiply(-width / 2)
 				.asBigDecimal(zoomMag)
 				.add(info.getX()
-						.setScale(zoomMag, BigDecimal.ROUND_DOWN))
-				.setScale(zoomMag, BigDecimal.ROUND_DOWN);
+						.setScale(zoomMag, RoundingMode.DOWN))
+				.setScale(zoomMag, RoundingMode.DOWN);
 		BigDecimal xMax = scale.multiply(width / 2)
 				.asBigDecimal(zoomMag)
 				.add(info.getX()
-						.setScale(zoomMag, BigDecimal.ROUND_DOWN))
-				.setScale(zoomMag, BigDecimal.ROUND_DOWN);
+						.setScale(zoomMag, RoundingMode.DOWN))
+				.setScale(zoomMag, RoundingMode.DOWN);
 		BigDecimal yMin = scale.multiply(-height / 2)
 				.asBigDecimal(zoomMag)
 				.add(info.getY()
-						.setScale(zoomMag, BigDecimal.ROUND_DOWN))
-				.setScale(zoomMag, BigDecimal.ROUND_DOWN);
+						.setScale(zoomMag, RoundingMode.DOWN))
+				.setScale(zoomMag, RoundingMode.DOWN);
 		BigDecimal yMax = scale.multiply(height / 2)
 				.asBigDecimal(zoomMag)
 				.add(info.getY()
-						.setScale(zoomMag, BigDecimal.ROUND_DOWN))
-				.setScale(zoomMag, BigDecimal.ROUND_DOWN);
+						.setScale(zoomMag, RoundingMode.DOWN))
+				.setScale(zoomMag, RoundingMode.DOWN);
 		SizedDouble xDif = SizedDouble.parseSizedDouble(xMax.subtract(xMin));
 		SizedDouble yDif = SizedDouble.parseSizedDouble(yMax.subtract(yMin));
 		for(int i = 0; i < newIterations.length; i++) {
@@ -382,13 +382,13 @@ public class MBHelper {
 					return new Complex2(scale.multiply(iF - width / 2)
 							.asBigDecimal(zoomMag)
 							.add(info.getX()
-									.setScale(zoomMag, BigDecimal.ROUND_DOWN))
-							.setScale(zoomMag, BigDecimal.ROUND_DOWN), 
+									.setScale(zoomMag, RoundingMode.DOWN))
+							.setScale(zoomMag, RoundingMode.DOWN), 
 							scale.multiply(jF - height / 2)
 							.asBigDecimal(zoomMag)
 							.add(info.getY()
-									.setScale(zoomMag, BigDecimal.ROUND_DOWN))
-							.setScale(zoomMag, BigDecimal.ROUND_DOWN), 
+									.setScale(zoomMag, RoundingMode.DOWN))
+							.setScale(zoomMag, RoundingMode.DOWN), 
 							zoomMag);
 				}));
 			}
@@ -422,23 +422,23 @@ public class MBHelper {
 		BigDecimal xMin = scale.multiply(reuseDistance * -width / 2)
 				.asBigDecimal(zoomMag)
 				.add(info.getX()
-						.setScale(zoomMag, BigDecimal.ROUND_DOWN))
-				.setScale(zoomMag, BigDecimal.ROUND_DOWN);
+						.setScale(zoomMag, RoundingMode.DOWN))
+				.setScale(zoomMag, RoundingMode.DOWN);
 		BigDecimal xMax = scale.multiply(reuseDistance * width / 2)
 				.asBigDecimal(zoomMag)
 				.add(info.getX()
-						.setScale(zoomMag, BigDecimal.ROUND_DOWN))
-				.setScale(zoomMag, BigDecimal.ROUND_DOWN);
+						.setScale(zoomMag, RoundingMode.DOWN))
+				.setScale(zoomMag, RoundingMode.DOWN);
 		BigDecimal yMin = scale.multiply(reuseDistance * -height / 2)
 				.asBigDecimal(zoomMag)
 				.add(info.getY()
-						.setScale(zoomMag, BigDecimal.ROUND_DOWN))
-				.setScale(zoomMag, BigDecimal.ROUND_DOWN);
+						.setScale(zoomMag, RoundingMode.DOWN))
+				.setScale(zoomMag, RoundingMode.DOWN);
 		BigDecimal yMax = scale.multiply(reuseDistance * height / 2)
 				.asBigDecimal(zoomMag)
 				.add(info.getY()
-						.setScale(zoomMag, BigDecimal.ROUND_DOWN))
-				.setScale(zoomMag, BigDecimal.ROUND_DOWN);
+						.setScale(zoomMag, RoundingMode.DOWN))
+				.setScale(zoomMag, RoundingMode.DOWN);
 		List<ReferencePoint> remove = new ArrayList<>();
 		APR.forEach((pr) -> {
 			if(pr.x.compareTo(xMin) < 0 || pr.x.compareTo(xMax) > 0 || pr.y.compareTo(yMin) < 0 || pr.y.compareTo(yMax) > 0) {

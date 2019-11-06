@@ -1,6 +1,7 @@
 package com.irar.mbviewer;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 
 public class Complex {
 
@@ -88,9 +89,9 @@ public class Complex {
 	}
 
 	public BigDecimal magSquBig(int pre) {
-		BigDecimal bX = new BigDecimal(x).setScale(pre, BigDecimal.ROUND_DOWN);
-		BigDecimal bY = new BigDecimal(y).setScale(pre, BigDecimal.ROUND_DOWN);
-		return bX.multiply(bX).setScale(pre, BigDecimal.ROUND_DOWN).add(bY.multiply(bY).setScale(pre, BigDecimal.ROUND_DOWN));
+		BigDecimal bX = new BigDecimal(x).setScale(pre, RoundingMode.DOWN);
+		BigDecimal bY = new BigDecimal(y).setScale(pre, RoundingMode.DOWN);
+		return bX.multiply(bX).setScale(pre, RoundingMode.DOWN).add(bY.multiply(bY).setScale(pre, RoundingMode.DOWN));
 	}
 
 	public SizedDouble magSquSD() {
