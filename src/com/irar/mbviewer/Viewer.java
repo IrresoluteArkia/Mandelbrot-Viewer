@@ -175,9 +175,11 @@ public class Viewer extends JPanel implements Runnable{
 		JCheckBoxMenuItem histB = new JCheckBoxMenuItem("Histogram", false);
 		histB.addActionListener((e) -> {
 			if(histB.isSelected()) {
-				Viewer.hist = true;
+				info.setDoHist(true);
+				helper.setRenderer(new HistogramRenderer());
 			}else {
-				Viewer.hist = false;
+				info.setDoHist(false);
+				helper.setRenderer(new IterationRenderer());
 			}
 			helper.recolor(bi, info, new ProgressMonitorFactory(renderInfo));
 		});
@@ -671,7 +673,7 @@ public class Viewer extends JPanel implements Runnable{
 			@Override
 			public void run() {
 				helper = new MBHelper();
-				helper.getSet(bi, info, new ProgressMonitorFactory(renderInfo), /*new IterationRenderer()*/new IterationRenderer());
+				helper.getSet(bi, info, new ProgressMonitorFactory(renderInfo), info.shouldDoHist() ? new HistogramRenderer() : new IterationRenderer());
 				iterField.setText("" + info.getIterations());
 			}
 		});

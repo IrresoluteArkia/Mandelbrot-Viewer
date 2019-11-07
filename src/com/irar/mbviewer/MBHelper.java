@@ -579,4 +579,8 @@ public class MBHelper {
 		Complex2 c4 = new Complex2((scale.multiply( width / 2)).asBigDecimal(zoomMag).add(locX), (scale.multiply( height / 2)).asBigDecimal(zoomMag).add(locY), zoomMag);
 		return getPeriod(c1, c2, c3, c4);
 	}
+
+	public void setRenderer(IMBRenderer renderer) {
+		this.renderer = renderer;
+	}
 }
