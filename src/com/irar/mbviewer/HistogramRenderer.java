@@ -1,59 +1,71 @@
 package com.irar.mbviewer;
 
 import java.awt.image.BufferedImage;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 
 public class HistogramRenderer implements IMBRenderer{
 
 	@Override
 	public void drawIterations(OversampleIteration[][] allIterations, BufferedImage bi, MBInfo info) {
-		int[] hist = new int[info.getIterations()];
+		List<OversampleIteration> sortedIterations = new ArrayList<>();
+		List<OversampleIteration> inSet = new ArrayList<>();
 		int total = 0;
-		for(OversampleIteration[] iterTemp1 : allIterations) {
-			for(OversampleIteration overIter : iterTemp1) {
-				for(Iteration iter : overIter.getIterations()) {
-					if(iter.iterations < info.getIterations()) {
-						hist[iter.iterations]++;
-						total++;
-					}
-				}
-			}
-		}
-		double[] hues = new double[hist.length];
-		double huetrack = 0;
-		for(int i = 0; i < hist.length; i++) {
-			huetrack += (double) hist[i] / total;
-			hues[i] = huetrack;
-		}
 		int x = 0;
 		int y = 0;
 		for(OversampleIteration[] iterTemp1 : allIterations) {
 			for(OversampleIteration overIter : iterTemp1) {
-				boolean isBlack = false;
-				double[] iterHues = new double[overIter.getIterations().size()];
-				for(int i = 0; i < iterHues.length; i++) {
-					Iteration iter = overIter.getIterations().get(i);
+				boolean set = overIter.getIterations().size() == 0;
+				for(Iteration iter : overIter.getIterations()) {
 					if(iter.iterations >= info.getIterations()) {
-						isBlack = true;
+						set = true;
 					}
-					iterHues[i] = hues[iter.iterations - 1];
+					HashMap<String, Double> loc = new HashMap<>();
+					loc.put("x", (double) x);
+					loc.put("y", (double) y);
+					iter.setExtraData(loc);
 				}
-				double hue = 0;
-				for(double iterHue : iterHues) {
-					hue += iterHue;
+				if(set) {
+					inSet.add(overIter);
+				}else {
+					sortedIterations.add(overIter);
 				}
-				hue /= iterHues.length;
-				hue = limit(0, 1, hue);
-				if(isBlack) {
-					hue = 1;
-				}
-				color(x, y, hue, info.getPalette(), bi);
-				
 				y++;
 			}
 			x++;
-			y=0;
+			y = 0;
 		}
+		sortedIterations.sort((iter1, iter2) -> {
+			float avg1 = 0;
+			float avg2 = 0;
+			for(Iteration iter : iter1.getIterations()) {
+				avg1 += iter.partial + iter.iterations;
+			}
+			for(Iteration iter : iter2.getIterations()) {
+				avg2 += iter.partial + iter.iterations;
+			}
+			avg1 /= iter1.getIterations().size();
+			avg2 /= iter2.getIterations().size();
+			int result = 0;
+			if(avg2 > avg1) {
+				result = 1;
+			}else if(avg1 > avg2) {
+				result = -1;
+			}
+			return result;
+		});
+		int index = 0;
+		for(OversampleIteration iter : sortedIterations) {
+			color((int) (double) iter.getIterations().get(0).getExtraData().get("x"), (int) (double) iter.getIterations().get(0).getExtraData().get("y"), 1 - ((double) (index + 1) / (sortedIterations.size() + 2)), info.getPalette(), bi);
+			index++;
+		}
+		for(OversampleIteration iter : inSet) {
+			if(iter.getIterations().size() > 0) {
+				color((int) (double) iter.getIterations().get(0).getExtraData().get("x"), (int) (double) iter.getIterations().get(0).getExtraData().get("y"), 0, info.getPalette(), bi);
+			}
+		}
+		
 	}
 
 	private double limit(int min, int max, double num) {
