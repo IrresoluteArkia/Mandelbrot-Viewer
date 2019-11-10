@@ -41,6 +41,8 @@ import javax.swing.JPanel;
 import javax.swing.JTextField;
 import javax.swing.filechooser.FileNameExtensionFilter;
 
+import com.irar.mbviewer.util.RandomUtil;
+
 import net.arikia.dev.drpc.DiscordEventHandlers;
 import net.arikia.dev.drpc.DiscordEventHandlers.Builder;
 import net.arikia.dev.drpc.DiscordRPC;
@@ -85,6 +87,7 @@ public class Viewer extends JPanel implements Runnable{
 	public static int dragX = 0;
 	public static int dragY = 0;
 	public static boolean initialized = false;
+	private static boolean autoZoom;
 
 	public static void main(String[] args) {
 		try {
@@ -161,6 +164,7 @@ public class Viewer extends JPanel implements Runnable{
 		JMenuBar menuBar = new JMenuBar();
 		JMenu fileMenu = new JMenu("File");
 		JMenu paletteMenu = new JMenu("Palette");
+		JMenu toolsMenu = new JMenu("Tools");
 		JMenu helpMenu = new JMenu("Help");
 		
 		JMenuItem openFile = new JMenuItem("Open");
@@ -215,14 +219,27 @@ public class Viewer extends JPanel implements Runnable{
 			clearCache();
 		});
 		
+		JCheckBoxMenuItem autoZoom = new JCheckBoxMenuItem("Autozoom (Experimental)");
+		autoZoom.setSelected(false);
+		autoZoom.addActionListener((e) -> {
+			Viewer.autoZoom = !Viewer.autoZoom;
+			autoZoom.setSelected(Viewer.autoZoom);
+			if(helper == null || (helper != null && (helper.interrupted || helper.iterations != null))) {
+				drawFractal(info);
+			}
+		});
+		
 		fileMenu.add(openFile);
 		fileMenu.add(saveLoc);
 		fileMenu.add(saveImage);
 		
 		helpMenu.add(clearCache);
 		
+		toolsMenu.add(autoZoom);
+		
 		menuBar.add(fileMenu);
 		menuBar.add(paletteMenu);
+		menuBar.add(toolsMenu);
 		menuBar.add(helpMenu);
 		
 		window.setJMenuBar(menuBar);
@@ -675,6 +692,9 @@ public class Viewer extends JPanel implements Runnable{
 				helper = new MBHelper();
 				helper.getSet(bi, info, new ProgressMonitorFactory(renderInfo), info.shouldDoHist() ? new HistogramRenderer() : new IterationRenderer());
 				iterField.setText("" + info.getIterations());
+				if(autoZoom) {
+					selectAndAutoZoom(info, helper);
+				}
 			}
 		});
 		if(current != null) {
@@ -683,6 +703,100 @@ public class Viewer extends JPanel implements Runnable{
 		thread.start();
 	}
 	
+	protected static void selectAndAutoZoom(MBInfo info, MBHelper helper) {
+		if(helper == null) {
+			drawFractal(info);
+			return;
+		}
+		if(helper.iterations == null || helper.interrupted) {
+			return;
+		}
+		OversampleIteration selected = selectGoodZoomLocationFrom(helper.iterations);
+		Complex2 selectedLocation = selected.getIterations().get(0).getActualLocation();
+		info.setX(selectedLocation.x);
+		info.setY(selectedLocation.y);
+		info.setZoom(info.getZoom().divide(2));
+		drawFractal(info);
+	}
+
+	private static OversampleIteration selectGoodZoomLocationFrom(OversampleIteration[][] iterations) {
+		HashMap<OversampleIteration, Integer> weightMap = getWeightMap(iterations);
+		return RandomUtil.pickWeighted(weightMap);
+	}
+
+	private static HashMap<OversampleIteration, Integer> getWeightMap(OversampleIteration[][] iterations) {
+		HashMap<OversampleIteration, Integer> weightMap = new HashMap<>();
+		for(int x = 0; x < iterations.length; x++) {
+			for(int y = 0; y < iterations[x].length; y++) {
+				OversampleIteration iter = iterations[x][y];
+				if(iter.getIterations().size() == 0) {
+					weightMap.put(iter, 0);
+					continue;
+				}
+				int comp1 = 0;
+				int comp2 = 0;
+				int comp3 = 0;
+				int comp4 = 0;
+				if(x > 0) {
+					comp1 += compareIterations(iter, iterations[x-1][y]);
+				}else {
+					comp1 = 1;
+				}
+				if(y > 0) {
+					comp2 += compareIterations(iter, iterations[x][y-1]);
+				}else {
+					comp2 = 1;
+				}
+				if(x < iterations.length-1) {
+					comp3 += compareIterations(iter, iterations[x+1][y]);
+				}else {
+					comp3 = 1;
+				}
+				if(y < iterations[x].length-1) {
+					comp4 += compareIterations(iter, iterations[x][y+1]);
+				}else {
+					comp4 = 1;
+				}
+				double comp = comp1+comp2+comp3+comp4;
+				if(comp1 == 0) {
+					comp /= 5;
+				}
+				if(comp2 == 0) {
+					comp /= 5;
+				}
+				if(comp3 == 0) {
+					comp /= 5;
+				}
+				if(comp4 == 0) {
+					comp /= 5;
+				}
+				weightMap.put(iter, (int) Math.ceil(comp));
+			}
+		}
+		return weightMap;
+	}
+
+	private static int compareIterations(OversampleIteration iter1, OversampleIteration iter2) {
+		int actIter1 = getAvgIter(iter1);
+		int actIter2 = 0;
+		if(iter2.getIterations().size() > 0) {
+			actIter2 = getAvgIter(iter2);
+		}else {
+			return 0;
+		}
+		return Math.abs(actIter1 - actIter2);
+	}
+
+	private static int getAvgIter(OversampleIteration iter) {
+		int total = 0;
+		int running = 0;
+		for(Iteration iteration : iter.getIterations()) {
+			total++;
+			running += iteration.iterations;
+		}
+		return running / total;
+	}
+
 	private void start() {
 		new Thread(this).start();
 	}
