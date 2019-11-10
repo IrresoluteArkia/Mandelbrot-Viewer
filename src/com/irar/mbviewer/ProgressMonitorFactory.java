@@ -9,6 +9,7 @@ public class ProgressMonitorFactory implements IProgressMonitorFactory<ProgressM
 	
 	private RenderInfo info;
 	private List<ProgressMonitor> monitors = new ArrayList<>();
+	private int id = 0;
 	
 	public ProgressMonitorFactory(RenderInfo info) {
 		this.info = info;
@@ -19,7 +20,8 @@ public class ProgressMonitorFactory implements IProgressMonitorFactory<ProgressM
 		JProgressBar pBar = new JProgressBar(0, 100);
 		info.progressBars.add(pBar);
 		info.validate();
-		ProgressMonitor monitor = new ProgressMonitor(pBar, this);
+		ProgressMonitor monitor = new ProgressMonitor(pBar, this, id);
+		id++;
 		monitors.add(monitor);
 		return monitor;
 	}

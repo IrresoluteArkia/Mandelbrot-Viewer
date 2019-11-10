@@ -31,6 +31,7 @@ public class MBHelper {
 			interrupted = true;
 			progressMonitorFactory.deleteAllMonitors();
 			e.printStackTrace();
+			Viewer.zoomAnimationProgress = 0;
 			return;
 		}
 		try {
@@ -39,9 +40,11 @@ public class MBHelper {
 			interrupted = true;
 			progressMonitorFactory.deleteAllMonitors();
 			e.printStackTrace();
+			Viewer.zoomAnimationProgress = 0;
 			return;
 		}
 		iterations = allIterations;
+		Viewer.zoomAnimationProgress = 0;
 	}
 	
 	private OversampleIteration[][] iterate(MBInfo info, int width, int height, int samples, IProgressMonitorFactory<?> factory) throws Exception {

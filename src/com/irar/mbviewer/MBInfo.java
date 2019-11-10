@@ -7,7 +7,10 @@ public class MBInfo {
 
 	private BigDecimal x = new BigDecimal(0); 
 	private BigDecimal y = new BigDecimal(0); 
+	private BigDecimal prevX = new BigDecimal(0);
+	private BigDecimal prevY = new BigDecimal(0);
 	private SizedDouble zoom = new SizedDouble(1); 
+	private SizedDouble prevZoom = new SizedDouble(1); 
 	private int iterations = 256;
 	private String name = "";
 	private Palette palette = null;
@@ -18,16 +21,19 @@ public class MBInfo {
 	private boolean doHist = false;
 	
 	public MBInfo setX(BigDecimal x) {
+		this.prevX = this.x;
 		this.x = x;
 		return this;
 	}
 	
 	public MBInfo setY(BigDecimal y) {
+		this.prevY = this.y;
 		this.y = y;
 		return this;
 	}
 	
 	public MBInfo setZoom(SizedDouble zoom) {
+		this.prevZoom = this.zoom;
 		this.zoom = zoom;
 		return this;
 	}
@@ -156,5 +162,19 @@ public class MBInfo {
 		}
 		return info;
 	}
+
+	public BigDecimal getPrevX() {
+		return prevX;
+	}
+
+	public BigDecimal getPrevY() {
+		return prevY;
+	}
+
+	public SizedDouble getPrevZoom() {
+		return prevZoom;
+	}
+	
+	
 	
 }

@@ -1,5 +1,6 @@
 package com.irar.mbviewer;
 
+import java.awt.Graphics;
 import java.awt.image.BufferedImage;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -56,16 +57,18 @@ public class HistogramRenderer implements IMBRenderer{
 			return result;
 		});
 		int index = 0;
+		BufferedImage bi2 = new BufferedImage(bi.getWidth(), bi.getHeight(), bi.getType());
 		for(OversampleIteration iter : sortedIterations) {
-			color((int) (double) iter.getIterations().get(0).getExtraData().get("x"), (int) (double) iter.getIterations().get(0).getExtraData().get("y"), 1 - ((double) (index + 1) / (sortedIterations.size() + 2)), info.getPalette(), bi);
+			color((int) (double) iter.getIterations().get(0).getExtraData().get("x"), (int) (double) iter.getIterations().get(0).getExtraData().get("y"), 1 - ((double) (index + 1) / (sortedIterations.size() + 2)), info.getPalette(), bi2);
 			index++;
 		}
 		for(OversampleIteration iter : inSet) {
 			if(iter.getIterations().size() > 0) {
-				color((int) (double) iter.getIterations().get(0).getExtraData().get("x"), (int) (double) iter.getIterations().get(0).getExtraData().get("y"), 0, info.getPalette(), bi);
+				color((int) (double) iter.getIterations().get(0).getExtraData().get("x"), (int) (double) iter.getIterations().get(0).getExtraData().get("y"), 0, info.getPalette(), bi2);
 			}
 		}
-		
+		Graphics g = bi.getGraphics();
+		g.drawImage(bi2, 0, 0, null);
 	}
 
 	private double limit(int min, int max, double num) {

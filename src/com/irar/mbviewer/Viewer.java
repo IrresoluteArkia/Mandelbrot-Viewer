@@ -262,14 +262,14 @@ public class Viewer extends JPanel implements Runnable{
 					info.setX(info.getX().add(fX.multiply(4).asBigDecimal(info.getX().scale() + 4)));
 					info.setY(info.getY().add(fY.multiply(4).asBigDecimal(info.getY().scale() + 4)));
 					info.setZoom(info.getZoom().multiply(2));
-					BufferedImage tempBI = new BufferedImage(bi.getWidth(), bi.getHeight(), BufferedImage.TYPE_INT_RGB);
-					Graphics tg = tempBI.getGraphics();
-					tg.drawImage(bi, 0, 0, null);
-					Graphics g = bi.getGraphics();
-					g.clearRect(0, 0, bi.getWidth(), bi.getHeight());
+//					BufferedImage tempBI = new BufferedImage(bi.getWidth(), bi.getHeight(), BufferedImage.TYPE_INT_RGB);
+//					Graphics tg = tempBI.getGraphics();
+//					tg.drawImage(bi, 0, 0, null);
+//					Graphics g = bi.getGraphics();
+//					g.clearRect(0, 0, bi.getWidth(), bi.getHeight());
 					int ex = e.getX();
 					int ey = e.getY();
-					g.drawImage(tempBI, WIDTH / 2 - ex / 2, HEIGHT / 2 - ey / 2, WIDTH - ex / 2, HEIGHT - ey / 2, 0, 0, tempBI.getWidth(), tempBI.getHeight(), null);
+//					g.drawImage(tempBI, WIDTH / 2 - ex / 2, HEIGHT / 2 - ey / 2, WIDTH - ex / 2, HEIGHT - ey / 2, 0, 0, tempBI.getWidth(), tempBI.getHeight(), null);
 					drawFractal(info);
 				}
 			}
@@ -324,19 +324,19 @@ public class Viewer extends JPanel implements Runnable{
 						info.setZoom(info.getZoom().multiply((double) difY * 2 / CHEIGHT));
 					}
 					mousePressed = false;
-					BufferedImage tempBI = new BufferedImage(bi.getWidth(), bi.getHeight(), BufferedImage.TYPE_INT_RGB);
-					Graphics tg = tempBI.getGraphics();
-					tg.drawImage(bi, 0, 0, null);
-					Graphics g = bi.getGraphics();
-					g.clearRect(0, 0, bi.getWidth(), bi.getHeight());
-					if(g instanceof Graphics2D) {
-						((Graphics2D) g).setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BICUBIC);
-					}
-					if(xGreater) {
-						g.drawImage(tempBI, 0, 0, WIDTH, HEIGHT, pressedX - difX, pressedY - difX, pressedX + difX, pressedY + difX, null);
-					}else {
-						g.drawImage(tempBI, 0, 0, WIDTH, HEIGHT, pressedX - difY, pressedY - difY, pressedX + difY, pressedY + difY, null);
-					}
+//					BufferedImage tempBI = new BufferedImage(bi.getWidth(), bi.getHeight(), BufferedImage.TYPE_INT_RGB);
+//					Graphics tg = tempBI.getGraphics();
+//					tg.drawImage(bi, 0, 0, null);
+//					Graphics g = bi.getGraphics();
+//					g.clearRect(0, 0, bi.getWidth(), bi.getHeight());
+//					if(g instanceof Graphics2D) {
+//						((Graphics2D) g).setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BICUBIC);
+//					}
+//					if(xGreater) {
+//						g.drawImage(tempBI, 0, 0, WIDTH, HEIGHT, pressedX - difX, pressedY - difX, pressedX + difX, pressedY + difX, null);
+//					}else {
+//						g.drawImage(tempBI, 0, 0, WIDTH, HEIGHT, pressedX - difY, pressedY - difY, pressedX + difY, pressedY + difY, null);
+//					}
 					drawFractal(info);
 				}
 				if(e.getButton() == 2) {
@@ -347,11 +347,11 @@ public class Viewer extends JPanel implements Runnable{
 					info.setX(info.getX().add(fX.multiply(4).asBigDecimal(info.getX().scale() + 4)));
 					info.setY(info.getY().add(fY.multiply(4).asBigDecimal(info.getY().scale() + 4)));
 					dragPressed = false;
-					BufferedImage tempBI = new BufferedImage(CWIDTH, CHEIGHT, BufferedImage.TYPE_INT_RGB);
-					Graphics tg = tempBI.getGraphics();
-					tg.drawImage(bi, difnX, difnY, CWIDTH + difnX, CHEIGHT + difnY, 0, 0, bi.getWidth(), bi.getHeight(), null);
-					Graphics g = bi.getGraphics();
-					g.drawImage(tempBI, 0, 0, null);
+//					BufferedImage tempBI = new BufferedImage(CWIDTH, CHEIGHT, BufferedImage.TYPE_INT_RGB);
+//					Graphics tg = tempBI.getGraphics();
+//					tg.drawImage(bi, difnX, difnY, CWIDTH + difnX, CHEIGHT + difnY, 0, 0, bi.getWidth(), bi.getHeight(), null);
+//					Graphics g = bi.getGraphics();
+//					g.drawImage(tempBI, 0, 0, null);
 					drawFractal(info);
 				}
 			}
@@ -684,6 +684,7 @@ public class Viewer extends JPanel implements Runnable{
 	protected static double blur = 0;
 	protected static boolean shufflePoints = true;
 	protected static MBHelper helper;
+	public static float zoomAnimationProgress;
 	private static void drawFractal(MBInfo info) {
 		DiscordHandler.createNewPresence(info);
 		thread = new Thread(new Runnable(){
@@ -850,6 +851,10 @@ public class Viewer extends JPanel implements Runnable{
 		this.repaint();
 	}
 	
+	int xBase, yBase;
+	double zoomDifBase;
+	boolean zoomInProgress;
+	
 	@Override
 	public void paint(Graphics g) {
 		super.paint(g);
@@ -862,7 +867,29 @@ public class Viewer extends JPanel implements Runnable{
 			int difY = mY - dragY;
 			g.drawImage(bi, difX, difY, CWIDTH + difX, CHEIGHT + difY, 0, 0, bi.getWidth(), bi.getHeight(), null);
 		}else {
-			g.drawImage(bi, 0, 0, CWIDTH, CHEIGHT, 0, 0, bi.getWidth(), bi.getHeight(), null);
+			if(zoomInProgress) {
+				if(Viewer.zoomAnimationProgress == 0) {
+					zoomInProgress = false;
+				}
+			}else {
+				if(zoomAnimationProgress != 0) {
+					zoomInProgress = true;
+					SizedDouble fromCenterX = SizedDouble.parseSizedDouble(info.getX().subtract(info.getPrevX()));
+					SizedDouble fromCenterY = SizedDouble.parseSizedDouble(info.getY().subtract(info.getPrevY()));
+					
+					xBase = (int) fromCenterX.divide(4).multiply(CWIDTH).divide(info.getPrevZoom()).asDouble();
+					yBase = (int) fromCenterY.divide(4).multiply(CHEIGHT).divide(info.getPrevZoom()).asDouble();
+					zoomDifBase = (info.getPrevZoom().divide(info.getZoom()).asDouble());
+				}
+			}
+			
+			double zoomDif = (zoomDifBase-1) * Viewer.zoomAnimationProgress;
+			
+			
+			int xOffBase = -(int) (xBase * Viewer.zoomAnimationProgress);
+			int yOffBase = -(int) (yBase * Viewer.zoomAnimationProgress);
+			((Graphics2D) g).setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BICUBIC);
+			g.drawImage(bi, (int) (-CWIDTH * zoomDif/2 + xOffBase*zoomDifBase), (int) (-CHEIGHT * zoomDif/2 + yOffBase*zoomDifBase), (int) (CWIDTH + CWIDTH * zoomDif/2 + xOffBase*zoomDifBase), (int) (CHEIGHT + CHEIGHT * zoomDif/2 + yOffBase*zoomDifBase), 0, 0, bi.getWidth(), bi.getHeight(), null);
 		}
 		
 		if(mousePressed) {
