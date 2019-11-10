@@ -730,7 +730,7 @@ public class Viewer extends JPanel implements Runnable{
 		for(int x = 0; x < iterations.length; x++) {
 			for(int y = 0; y < iterations[x].length; y++) {
 				OversampleIteration iter = iterations[x][y];
-				if(iter.getIterations().size() == 0) {
+				if(iter.getIterations().size() == 0 || x < iterations.length / 4 || x > iterations.length*3/4 || y < iterations[x].length / 4 || y > iterations[x].length*3/4) {
 					weightMap.put(iter, 0);
 					continue;
 				}
@@ -851,7 +851,7 @@ public class Viewer extends JPanel implements Runnable{
 		this.repaint();
 	}
 	
-	int xBase, yBase;
+	double xBase, yBase;
 	double zoomDifBase;
 	boolean zoomInProgress;
 	
@@ -886,8 +886,8 @@ public class Viewer extends JPanel implements Runnable{
 			double zoomDif = (zoomDifBase-1) * Viewer.zoomAnimationProgress;
 			
 			
-			int xOffBase = -(int) (xBase * Viewer.zoomAnimationProgress);
-			int yOffBase = -(int) (yBase * Viewer.zoomAnimationProgress);
+			double xOffBase = -(xBase * Viewer.zoomAnimationProgress);
+			double yOffBase = -(yBase * Viewer.zoomAnimationProgress);
 			((Graphics2D) g).setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BICUBIC);
 			g.drawImage(bi, (int) (-CWIDTH * zoomDif/2 + xOffBase*zoomDifBase), (int) (-CHEIGHT * zoomDif/2 + yOffBase*zoomDifBase), (int) (CWIDTH + CWIDTH * zoomDif/2 + xOffBase*zoomDifBase), (int) (CHEIGHT + CHEIGHT * zoomDif/2 + yOffBase*zoomDifBase), 0, 0, bi.getWidth(), bi.getHeight(), null);
 		}
