@@ -1,5 +1,6 @@
 package com.irar.mbviewer;
 
+import java.awt.Graphics;
 import java.awt.image.BufferedImage;
 import java.util.HashMap;
 import java.util.List;
@@ -8,14 +9,17 @@ public class IterationRenderer implements IMBRenderer{
 
 	@Override
 	public void drawIterations(OversampleIteration[][] iterations, BufferedImage bi, MBInfo info) {
+		BufferedImage bi2 = new BufferedImage(bi.getWidth(), bi.getHeight(), bi.getType());
 		for(int i = 0; i < iterations.length; i++) {
 			OversampleIteration[] i2 = iterations[i];
 			for(int j = 0; j < i2.length; j++) {
 				OversampleIteration iterSamples = i2[j];
 				int[] sampleColors = getColors(iterSamples, info.getPalette(), info.getIterations());
-				setColor(bi, i, j, sampleColors);
+				setColor(bi2, i, j, sampleColors);
 			}
 		}
+		Graphics g = bi.getGraphics();
+		g.drawImage(bi2, 0, 0, null);
 	}
 
 	private int[] getColors(OversampleIteration iteration, Palette palette, int maxIter) {
