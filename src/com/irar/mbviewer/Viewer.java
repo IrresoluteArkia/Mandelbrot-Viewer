@@ -690,7 +690,11 @@ public class Viewer extends JPanel implements Runnable{
 		thread = new Thread(new Runnable(){
 			@Override
 			public void run() {
-				helper = new MBHelper();
+				if(info.getPower().x == 2 && info.getPower().y == 0) {
+					helper = new MBHelper();
+				}else {
+					helper = new TinyMBHelper();
+				}
 				helper.getSet(bi, info, new ProgressMonitorFactory(renderInfo), info.shouldDoHist() ? new HistogramRenderer() : new IterationRenderer());
 				iterField.setText("" + info.getIterations());
 				if(autoZoom) {

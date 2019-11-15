@@ -152,7 +152,7 @@ public class MBInfo {
 				case "palette": info.palette = Palette.fromString(value); break;
 				case "oversample": info.oversample = Integer.parseInt(value); break;
 				case "shufflePoints": info.shufflePoints = Boolean.parseBoolean(value); break;
-	//			case "power": info.power = Complex; break;
+				case "power": info.power = Complex.parseString(value); break;
 				case "blur": info.blur = Double.parseDouble(value); break;
 				case "doHist": info.doHist = Boolean.parseBoolean(value); break;
 				}

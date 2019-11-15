@@ -131,5 +131,10 @@ public class Complex {
 		double m3i = Math.sin(ms);
 		return new Complex(m12 * m3r, m12 * m3i);
 	}
+
+	public static Complex parseString(String value) {
+		String[] split = value.split(" ");
+		return new Complex(Double.parseDouble(split[0]), Double.parseDouble(split[2].substring(0, split[2].length()-1)));
+	}
 	
 }

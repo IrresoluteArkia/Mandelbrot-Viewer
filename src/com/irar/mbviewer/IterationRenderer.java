@@ -40,8 +40,8 @@ public class IterationRenderer implements IMBRenderer{
 
 	private int getColor(Iteration iteration, Palette palette) {
 		int[] colors = palette.paletteloop;
-		int color1 = colors[iteration.iterations % colors.length];
-		int color2 = colors[(iteration.iterations + 1) % colors.length];
+		int color1 = colors[(iteration.iterations < 0 ? 0 : iteration.iterations) % colors.length];
+		int color2 = colors[((iteration.iterations < 0 ? 0 : iteration.iterations) + 1) % colors.length];
 		int color = interColors(color1, color2, iteration.partial % 1);
 		return color;
 	}
