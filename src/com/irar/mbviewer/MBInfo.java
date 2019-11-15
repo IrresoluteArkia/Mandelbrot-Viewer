@@ -174,6 +174,12 @@ public class MBInfo {
 	public SizedDouble getPrevZoom() {
 		return prevZoom;
 	}
+
+	public void syncPrev() {
+		prevX = x;
+		prevY = y;
+		prevZoom = zoom;
+	}
 	
 	
 	

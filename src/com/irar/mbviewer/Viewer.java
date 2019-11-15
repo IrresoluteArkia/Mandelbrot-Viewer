@@ -373,6 +373,7 @@ public class Viewer extends JPanel implements Runnable{
 			@Override
 			public void actionPerformed(ActionEvent e) {
 				info.setIterations(Math.max(32, info.getIterations() * 2));
+				info.syncPrev();
 				iterField.setText("" + info.getIterations());
 				drawFractal(info);
 			}
@@ -382,6 +383,7 @@ public class Viewer extends JPanel implements Runnable{
 			@Override
 			public void actionPerformed(ActionEvent e) {
 				info.setIterations(Math.max(32, info.getIterations() / 2));
+				info.syncPrev();
 				iterField.setText("" + info.getIterations());
 				drawFractal(info);
 			}
@@ -441,6 +443,7 @@ public class Viewer extends JPanel implements Runnable{
 				bi.getGraphics().drawImage(Viewer.bi, 0, 0, resW, resH, 0, 0, Viewer.bi.getWidth(), Viewer.bi.getHeight(), null);
 				Viewer.bi = bi;
 				field.setText(resW + " x " + resH);
+				info.syncPrev();
 				drawFractal(info);
 			}
 		});
@@ -454,6 +457,7 @@ public class Viewer extends JPanel implements Runnable{
 				bi.getGraphics().drawImage(Viewer.bi, 0, 0, resW, resH, 0, 0, Viewer.bi.getWidth(), Viewer.bi.getHeight(), null);
 				Viewer.bi = bi;
 				field.setText(resW + " x " + resH);
+				info.syncPrev();
 				drawFractal(info);
 			}
 		});
@@ -467,6 +471,7 @@ public class Viewer extends JPanel implements Runnable{
 				bi.getGraphics().drawImage(Viewer.bi, 0, 0, resW, resH, 0, 0, Viewer.bi.getWidth(), Viewer.bi.getHeight(), null);
 				Viewer.bi = bi;
 				field.setText(resW + " x " + resH);
+				info.syncPrev();
 				drawFractal(info);
 			}
 		});
@@ -480,6 +485,7 @@ public class Viewer extends JPanel implements Runnable{
 				bi.getGraphics().drawImage(Viewer.bi, 0, 0, resW, resH, 0, 0, Viewer.bi.getWidth(), Viewer.bi.getHeight(), null);
 				Viewer.bi = bi;
 				field.setText(resW + " x " + resH);
+				info.syncPrev();
 				drawFractal(info);
 			}
 		});
@@ -495,6 +501,7 @@ public class Viewer extends JPanel implements Runnable{
 				bi.getGraphics().drawImage(Viewer.bi, 0, 0, resW, resH, 0, 0, Viewer.bi.getWidth(), Viewer.bi.getHeight(), null);
 				Viewer.bi = bi;
 				field.setText(resW + " x " + resH);
+				info.syncPrev();
 				drawFractal(info);
 			}
 		});
@@ -510,6 +517,7 @@ public class Viewer extends JPanel implements Runnable{
 				bi.getGraphics().drawImage(Viewer.bi, 0, 0, resW, resH, 0, 0, Viewer.bi.getWidth(), Viewer.bi.getHeight(), null);
 				Viewer.bi = bi;
 				field.setText(resW + " x " + resH);
+				info.syncPrev();
 				drawFractal(info);
 			}
 		});
@@ -525,6 +533,7 @@ public class Viewer extends JPanel implements Runnable{
 				bi.getGraphics().drawImage(Viewer.bi, 0, 0, resW, resH, 0, 0, Viewer.bi.getWidth(), Viewer.bi.getHeight(), null);
 				Viewer.bi = bi;
 				field.setText(resW + " x " + resH);
+				info.syncPrev();
 				drawFractal(info);
 			}
 		});
@@ -546,6 +555,7 @@ public class Viewer extends JPanel implements Runnable{
 				bi.getGraphics().drawImage(Viewer.bi, 0, 0, resW, resH, 0, 0, Viewer.bi.getWidth(), Viewer.bi.getHeight(), null);
 				Viewer.bi = bi;
 				field.setText(resW + " x " + resH);
+				info.syncPrev();
 				drawFractal(info);
 			}
 		});
@@ -556,6 +566,7 @@ public class Viewer extends JPanel implements Runnable{
 				double x = Double.parseDouble(field2.getText());
 				double y = Double.parseDouble(field2b.getText());
 				info.setPower(new Complex(x, y));
+				info.syncPrev();
 				drawFractal(info);
 			}
 		});
@@ -565,6 +576,7 @@ public class Viewer extends JPanel implements Runnable{
 			@Override
 			public void actionPerformed(ActionEvent e) {
 				info.setOversample(Integer.parseInt(field3.getText()));
+				info.syncPrev();
 				drawFractal(info);
 			}
 		});
@@ -574,6 +586,7 @@ public class Viewer extends JPanel implements Runnable{
 			@Override
 			public void actionPerformed(ActionEvent e) {
 				blur = Double.parseDouble(field4.getText());
+				info.syncPrev();
 				drawFractal(info);
 			}
 		});
