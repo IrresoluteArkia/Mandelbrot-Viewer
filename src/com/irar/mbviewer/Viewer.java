@@ -228,6 +228,39 @@ public class Viewer extends JPanel implements Runnable{
 				drawFractal(info);
 			}
 		});
+		JMenuItem period = new JMenuItem("Find Minibrot");
+		period.addActionListener(new ActionListener() {
+			@Override
+			public void actionPerformed(ActionEvent e) {
+				thread = new Thread(new Runnable(){
+					@Override
+					public void run() {
+						SizedDouble compZoom = SizedDouble.ZERO;
+						try {
+							if(helper == null) {
+								helper = new MBHelper();
+							}
+							ZoomLoc comp = helper.findMini(info, resW, resH, 1.8);
+							compZoom = comp.zoom;
+							if(comp.loc != null) {
+								if(compZoom.compareTo(SizedDouble.ZERO) == 0) {
+									renderInfo.minIter.setText("Failed to find minibrot");
+								}else {
+									info.setX(comp.loc.x);
+									info.setY(comp.loc.y);
+									info.setZoom(comp.zoom);
+									drawFractal(info);
+								}
+							}
+						}catch(Exception e) {
+						}
+						window.validate();
+						window.pack();
+					}
+				});
+				thread.start();
+			}
+		});
 		
 		fileMenu.add(openFile);
 		fileMenu.add(saveLoc);
@@ -236,6 +269,7 @@ public class Viewer extends JPanel implements Runnable{
 		helpMenu.add(clearCache);
 		
 		toolsMenu.add(autoZoom);
+		toolsMenu.add(period);
 		
 		menuBar.add(fileMenu);
 		menuBar.add(paletteMenu);
@@ -591,39 +625,7 @@ public class Viewer extends JPanel implements Runnable{
 			}
 		});
 		
-		Button period = new Button("Find Minibrot");
-		period.addActionListener(new ActionListener() {
-			@Override
-			public void actionPerformed(ActionEvent e) {
-				thread = new Thread(new Runnable(){
-					@Override
-					public void run() {
-						SizedDouble compZoom = SizedDouble.ZERO;
-						try {
-							if(helper == null) {
-								helper = new MBHelper();
-							}
-							ZoomLoc comp = helper.findMini(info, resW, resH, 1.8);
-							compZoom = comp.zoom;
-							if(comp.loc != null) {
-								if(compZoom.compareTo(SizedDouble.ZERO) == 0) {
-									renderInfo.minIter.setText("Failed to find minibrot");
-								}else {
-									info.setX(comp.loc.x);
-									info.setY(comp.loc.y);
-									info.setZoom(comp.zoom);
-									drawFractal(info);
-								}
-							}
-						}catch(Exception e) {
-						}
-						window.validate();
-						window.pack();
-					}
-				});
-				thread.start();
-			}
-		});
+
 		
 		sp = new JCheckBox("Shuffle Points");
 		sp.setSelected(true);
@@ -653,7 +655,6 @@ public class Viewer extends JPanel implements Runnable{
 		custom2.setMaximumSize(new Dimension(10000, 30));
 		custom3.setMaximumSize(new Dimension(10000, 30));
 		custom4.setMaximumSize(new Dimension(10000, 30));
-		period.setMaximumSize(new Dimension(10000, 30));
 		dfault.setMaximumSize(new Dimension(10000, 30));
 		res.setMaximumSize(new Dimension(10000, 30));
 		k4.setMaximumSize(new Dimension(10000, 30));
@@ -687,7 +688,6 @@ public class Viewer extends JPanel implements Runnable{
 //		panel1.add(panel2c);
 		panel1.add(panel2d);
 		panel1.add(panel2e);
-		panel1.add(period);
 //		panel1.add(sp);
 		panelx.add(new JLabel("Resolution:"));
 		panelx.add(panel1);
