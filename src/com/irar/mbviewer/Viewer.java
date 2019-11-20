@@ -39,6 +39,8 @@ import javax.swing.JMenuBar;
 import javax.swing.JMenuItem;
 import javax.swing.JPanel;
 import javax.swing.JTextField;
+import javax.swing.UIManager;
+import javax.swing.UnsupportedLookAndFeelException;
 import javax.swing.filechooser.FileNameExtensionFilter;
 
 import com.irar.mbviewer.util.RandomUtil;
@@ -104,6 +106,12 @@ public class Viewer extends JPanel implements Runnable{
 			}catch(Exception e2) {}
 		}
 		
+        try {
+			UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName());
+		} catch (ClassNotFoundException | InstantiationException | IllegalAccessException
+				| UnsupportedLookAndFeelException e1) {
+			e1.printStackTrace();
+		}
 		window = new JFrame("Mandelbrot Set Viewer");
 		
 		
