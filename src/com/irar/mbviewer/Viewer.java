@@ -364,14 +364,10 @@ public class Viewer extends JPanel implements Runnable{
 				if(difX == 0 && difY == 0) {
 					if(e.getButton() == 2) {
 						dragPressed = false;
-						difX = Math.abs(relX - WIDTH / 2);
-						difY = Math.abs(relY - HEIGHT / 2);
-						difnX = relX - WIDTH / 2;
-						difnY = relY - HEIGHT / 2;
-						int x = difnX;
-						int y = difnY;
-						SizedDouble fX = new SizedDouble(x).divide(WIDTH).multiply(info.getZoom());
-						SizedDouble fY = new SizedDouble(y).divide(HEIGHT).multiply(info.getZoom());
+						int x = relX - WIDTH / 2;
+						int y = relY - HEIGHT / 2;
+						SizedDouble fX = new SizedDouble(x).divide(Math.min(WIDTH, HEIGHT)).multiply(info.getZoom());
+						SizedDouble fY = new SizedDouble(y).divide(Math.min(WIDTH, HEIGHT)).multiply(info.getZoom());
 						info.setX(info.getX().add(fX.multiply(4).asBigDecimal(info.getX().scale() + 4)));
 						info.setY(info.getY().add(fY.multiply(4).asBigDecimal(info.getY().scale() + 4)));
 						drawFractal(info);
@@ -382,8 +378,8 @@ public class Viewer extends JPanel implements Runnable{
 				if(e.getButton() == 1) {
 					int x = pressedX - WIDTH / 2;
 					int y = pressedY - HEIGHT / 2;
-					SizedDouble fX = new SizedDouble(x).divide(WIDTH).multiply(info.getZoom());
-					SizedDouble fY = new SizedDouble(y).divide(HEIGHT).multiply(info.getZoom());
+					SizedDouble fX = new SizedDouble(x).divide(Math.min(WIDTH, HEIGHT)).multiply(info.getZoom());
+					SizedDouble fY = new SizedDouble(y).divide(Math.min(WIDTH, HEIGHT)).multiply(info.getZoom());
 					info.setX(info.getX().add(fX.multiply(4).asBigDecimal(info.getX().scale() + 4)));
 					info.setY(info.getY().add(fY.multiply(4).asBigDecimal(info.getY().scale() + 4)));
 					if(xGreater) {
@@ -914,8 +910,8 @@ public class Viewer extends JPanel implements Runnable{
 					SizedDouble fromCenterX = SizedDouble.parseSizedDouble(info.getX().subtract(info.getPrevX()));
 					SizedDouble fromCenterY = SizedDouble.parseSizedDouble(info.getY().subtract(info.getPrevY()));
 					
-					xBase = (int) fromCenterX.divide(4).multiply(WIDTH).divide(info.getPrevZoom()).asDouble();
-					yBase = (int) fromCenterY.divide(4).multiply(HEIGHT).divide(info.getPrevZoom()).asDouble();
+					xBase = (int) fromCenterX.divide(4).multiply(Math.min(WIDTH, HEIGHT)).divide(info.getPrevZoom()).asDouble();
+					yBase = (int) fromCenterY.divide(4).multiply(Math.min(WIDTH, HEIGHT)).divide(info.getPrevZoom()).asDouble();
 					zoomDifBase = (info.getPrevZoom().divide(info.getZoom()).asDouble());
 				}
 			}
@@ -932,14 +928,16 @@ public class Viewer extends JPanel implements Runnable{
 		if(mousePressed) {
 			int mX = MouseInfo.getPointerInfo().getLocation().x - this.getLocationOnScreen().x;
 			int mY = MouseInfo.getPointerInfo().getLocation().y - this.getLocationOnScreen().y;
+			mX = ((mX-view.getViewOffsetX())*WIDTH/view.getViewWidth());
+			mY = ((mY-view.getViewOffsetY())*HEIGHT/view.getViewHeight());
 			int difX = Math.abs(mX - pressedX);
 			int difY = Math.abs(mY - pressedY);
 			boolean xGreater = (double) difX / WIDTH > (double) difY / HEIGHT;
 			g.setColor(Color.WHITE);
 			if(xGreater) {
-				g.drawRect((pressedX - difX) * view.getViewWidth() / WIDTH, (pressedY - difX) * view.getViewHeight() / HEIGHT, (int) (difX * 2) * view.getViewWidth() / WIDTH, (int) ((double) HEIGHT / WIDTH * difX * 2) * view.getViewHeight() / HEIGHT);
+				g.drawRect(pressedX - difX, pressedY - (difX*HEIGHT/WIDTH), (int) (difX * 2), (int) ((double) HEIGHT / WIDTH * difX * 2));
 			}else {
-				g.drawRect(pressedX - difY, pressedY - difY, (int) ((double) WIDTH / HEIGHT * difY * 2), (int) (difY * 2));
+				g.drawRect(pressedX - (difY*WIDTH/HEIGHT), pressedY - difY, (int) ((double) WIDTH / HEIGHT * difY * 2), (int) (difY * 2));
 			}
 		}
 		
