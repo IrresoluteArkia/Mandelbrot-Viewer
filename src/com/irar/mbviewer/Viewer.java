@@ -76,6 +76,7 @@ public class Viewer extends JPanel implements Runnable{
 	public static TextField iterField;
 	public static boolean hist = false;
 	public static List<Palette> palettes = PaletteSaveHandler.getPaletteData();
+	public static StatusBar statusBar;
 	static {
 		try {
 			info.setPalette(palettes.get(0));
@@ -119,8 +120,8 @@ public class Viewer extends JPanel implements Runnable{
 		window.setLayout(new BorderLayout());
 		addMenu(window);
 		window.add(instance, BorderLayout.CENTER);
-		JPanel panel2 = new JPanel(new BorderLayout());
-		window.add(panel2, BorderLayout.SOUTH);
+		statusBar = new StatusBar();
+		window.add(statusBar, BorderLayout.SOUTH);
 		JPanel panel1 = new JPanel(new BorderLayout());
 		addIter(panel1);
 		addRes(panel1);
