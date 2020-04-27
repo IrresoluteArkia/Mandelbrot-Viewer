@@ -59,8 +59,6 @@ public class Viewer extends JPanel implements Runnable{
 	private static final long serialVersionUID = 1L;
 	public static JFrame window;
 	public static Viewer instance = new Viewer();
-	public static int CWIDTH = 512;
-	public static int CHEIGHT = 512;
 	public static int WIDTH = 512;
 	public static int HEIGHT = 512;
 	public static int resW = 512;
@@ -77,6 +75,7 @@ public class Viewer extends JPanel implements Runnable{
 	public static boolean hist = false;
 	public static List<Palette> palettes = PaletteSaveHandler.getPaletteData();
 	public static StatusBar statusBar;
+	public static ViewMode view = new WindowedMode();
 	static {
 		try {
 			info.setPalette(palettes.get(0));
@@ -148,10 +147,19 @@ public class Viewer extends JPanel implements Runnable{
 		}
 		DiscordHandler.setup();
 		window.setIconImage(img);
+		view.applyMode(window, instance);
 		instance.start();
 		
 		initialized = true;
 		drawFractal(info);
+	}
+	
+	public void setSize(int width, int height) {
+		super.setSize(width, height);
+		Dimension size = new Dimension(width, height);
+		this.setMinimumSize(size);
+		this.setMaximumSize(size);
+		this.setPreferredSize(size);
 	}
 	
 	private static void setFile(File file) {
@@ -172,6 +180,7 @@ public class Viewer extends JPanel implements Runnable{
 	private static void addMenu(JFrame window) {
 		JMenuBar menuBar = new JMenuBar();
 		JMenu fileMenu = new JMenu("File");
+		JMenu viewMenu = new JMenu("View");
 		JMenu paletteMenu = new JMenu("Palette");
 		JMenu toolsMenu = new JMenu("Tools");
 		JMenu helpMenu = new JMenu("Help");
@@ -183,6 +192,17 @@ public class Viewer extends JPanel implements Runnable{
 		JMenuItem saveImage = new JMenuItem("Save Image");
 		saveLoc.addActionListener(new SaveL());
 		saveImage.addActionListener(new SaveP());
+		
+		JCheckBoxMenuItem fullscreen = new JCheckBoxMenuItem("Fullscreen", false);
+		fullscreen.addActionListener(e -> {
+			if(fullscreen.isSelected()) {
+				view = new FullscreenMode();
+				view.applyMode(window, instance);
+			}else {
+				view = new WindowedMode();
+				view.applyMode(window, instance);
+			}
+		});
 		
 		List<JCheckBoxMenuItem> pButtons = new ArrayList<>();
 		JCheckBoxMenuItem histB = new JCheckBoxMenuItem("Histogram", false);
@@ -275,12 +295,15 @@ public class Viewer extends JPanel implements Runnable{
 		fileMenu.add(saveLoc);
 		fileMenu.add(saveImage);
 		
+		viewMenu.add(fullscreen);
+		
 		helpMenu.add(clearCache);
 		
 		toolsMenu.add(autoZoom);
 		toolsMenu.add(period);
 		
 		menuBar.add(fileMenu);
+		menuBar.add(viewMenu);
 		menuBar.add(paletteMenu);
 		menuBar.add(toolsMenu);
 		menuBar.add(helpMenu);
@@ -294,34 +317,36 @@ public class Viewer extends JPanel implements Runnable{
 
 	private static void addML(Viewer canvas) {
 		canvas.addMouseListener(new MouseListener() {
-
+			int x(int x) {
+				double ratio = (double) WIDTH / view.getViewWidth();
+				x -= view.getViewOffsetX();
+				return (int) (x * ratio);
+			}
+			int y(int y) {
+				double ratio = (double) HEIGHT / view.getViewHeight();
+				y -= view.getViewOffsetY();
+				return (int) (y * ratio);
+			}
+			
 			@Override
 			public void mouseClicked(MouseEvent e) {
 				if(e.getButton() == 3) {
-					int x = e.getX() - CWIDTH / 2;
-					int y = e.getY() - CHEIGHT / 2;
-					SizedDouble fX = new SizedDouble(x).divide(CWIDTH).multiply(info.getZoom());
-					SizedDouble fY = new SizedDouble(y).divide(CHEIGHT).multiply(info.getZoom());
+					int x = x(e.getX()) - WIDTH / 2;
+					int y = y(e.getY()) - HEIGHT / 2;
+					SizedDouble fX = new SizedDouble(x).divide(WIDTH).multiply(info.getZoom());
+					SizedDouble fY = new SizedDouble(y).divide(HEIGHT).multiply(info.getZoom());
 					info.setX(info.getX().add(fX.multiply(4).asBigDecimal(info.getX().scale() + 4)));
 					info.setY(info.getY().add(fY.multiply(4).asBigDecimal(info.getY().scale() + 4)));
 					info.setZoom(info.getZoom().multiply(2));
-//					BufferedImage tempBI = new BufferedImage(bi.getWidth(), bi.getHeight(), BufferedImage.TYPE_INT_RGB);
-//					Graphics tg = tempBI.getGraphics();
-//					tg.drawImage(bi, 0, 0, null);
-//					Graphics g = bi.getGraphics();
-//					g.clearRect(0, 0, bi.getWidth(), bi.getHeight());
-					int ex = e.getX();
-					int ey = e.getY();
-//					g.drawImage(tempBI, WIDTH / 2 - ex / 2, HEIGHT / 2 - ey / 2, WIDTH - ex / 2, HEIGHT - ey / 2, 0, 0, tempBI.getWidth(), tempBI.getHeight(), null);
 					drawFractal(info);
 				}
 			}
 
 			public void mousePressed(MouseEvent e) {
-				pressedX = e.getX();
-				pressedY = e.getY();
-				dragX = e.getX();
-				dragY = e.getY();
+				pressedX = x(e.getX());
+				pressedY = y(e.getY());
+				dragX = x(e.getX());
+				dragY = y(e.getY());
 				if(e.getButton() == 1) {
 					mousePressed = true;
 				}
@@ -330,8 +355,8 @@ public class Viewer extends JPanel implements Runnable{
 				}
 			}
 			public void mouseReleased(MouseEvent e) {
-				int relX = e.getX();
-				int relY = e.getY();
+				int relX = x(e.getX());
+				int relY = y(e.getY());
 				int difX = Math.abs(relX - pressedX);
 				int difY = Math.abs(relY - pressedY);
 				int difnX = relX - pressedX;
@@ -339,14 +364,14 @@ public class Viewer extends JPanel implements Runnable{
 				if(difX == 0 && difY == 0) {
 					if(e.getButton() == 2) {
 						dragPressed = false;
-						difX = Math.abs(relX - CWIDTH / 2);
-						difY = Math.abs(relY - CHEIGHT / 2);
-						difnX = relX - CWIDTH / 2;
-						difnY = relY - CHEIGHT / 2;
+						difX = Math.abs(relX - WIDTH / 2);
+						difY = Math.abs(relY - HEIGHT / 2);
+						difnX = relX - WIDTH / 2;
+						difnY = relY - HEIGHT / 2;
 						int x = difnX;
 						int y = difnY;
-						SizedDouble fX = new SizedDouble(x).divide(CWIDTH).multiply(info.getZoom());
-						SizedDouble fY = new SizedDouble(y).divide(CHEIGHT).multiply(info.getZoom());
+						SizedDouble fX = new SizedDouble(x).divide(WIDTH).multiply(info.getZoom());
+						SizedDouble fY = new SizedDouble(y).divide(HEIGHT).multiply(info.getZoom());
 						info.setX(info.getX().add(fX.multiply(4).asBigDecimal(info.getX().scale() + 4)));
 						info.setY(info.getY().add(fY.multiply(4).asBigDecimal(info.getY().scale() + 4)));
 						drawFractal(info);
@@ -355,46 +380,28 @@ public class Viewer extends JPanel implements Runnable{
 				}
 				boolean xGreater = difX > difY;
 				if(e.getButton() == 1) {
-					int x = pressedX - CWIDTH / 2;
-					int y = pressedY - CHEIGHT / 2;
-					SizedDouble fX = new SizedDouble(x).divide(CWIDTH).multiply(info.getZoom());
-					SizedDouble fY = new SizedDouble(y).divide(CHEIGHT).multiply(info.getZoom());
+					int x = pressedX - WIDTH / 2;
+					int y = pressedY - HEIGHT / 2;
+					SizedDouble fX = new SizedDouble(x).divide(WIDTH).multiply(info.getZoom());
+					SizedDouble fY = new SizedDouble(y).divide(HEIGHT).multiply(info.getZoom());
 					info.setX(info.getX().add(fX.multiply(4).asBigDecimal(info.getX().scale() + 4)));
 					info.setY(info.getY().add(fY.multiply(4).asBigDecimal(info.getY().scale() + 4)));
 					if(xGreater) {
-						info.setZoom(info.getZoom().multiply((double) difX * 2 / CWIDTH));
+						info.setZoom(info.getZoom().multiply((double) difX * 2 / WIDTH));
 					}else {
-						info.setZoom(info.getZoom().multiply((double) difY * 2 / CHEIGHT));
+						info.setZoom(info.getZoom().multiply((double) difY * 2 / HEIGHT));
 					}
 					mousePressed = false;
-//					BufferedImage tempBI = new BufferedImage(bi.getWidth(), bi.getHeight(), BufferedImage.TYPE_INT_RGB);
-//					Graphics tg = tempBI.getGraphics();
-//					tg.drawImage(bi, 0, 0, null);
-//					Graphics g = bi.getGraphics();
-//					g.clearRect(0, 0, bi.getWidth(), bi.getHeight());
-//					if(g instanceof Graphics2D) {
-//						((Graphics2D) g).setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BICUBIC);
-//					}
-//					if(xGreater) {
-//						g.drawImage(tempBI, 0, 0, WIDTH, HEIGHT, pressedX - difX, pressedY - difX, pressedX + difX, pressedY + difX, null);
-//					}else {
-//						g.drawImage(tempBI, 0, 0, WIDTH, HEIGHT, pressedX - difY, pressedY - difY, pressedX + difY, pressedY + difY, null);
-//					}
 					drawFractal(info);
 				}
 				if(e.getButton() == 2) {
 					int x = -difnX;
 					int y = -difnY;
-					SizedDouble fX = new SizedDouble(x).divide(CWIDTH).multiply(info.getZoom());
-					SizedDouble fY = new SizedDouble(y).divide(CHEIGHT).multiply(info.getZoom());
+					SizedDouble fX = new SizedDouble(x).divide(WIDTH).multiply(info.getZoom());
+					SizedDouble fY = new SizedDouble(y).divide(HEIGHT).multiply(info.getZoom());
 					info.setX(info.getX().add(fX.multiply(4).asBigDecimal(info.getX().scale() + 4)));
 					info.setY(info.getY().add(fY.multiply(4).asBigDecimal(info.getY().scale() + 4)));
 					dragPressed = false;
-//					BufferedImage tempBI = new BufferedImage(CWIDTH, CHEIGHT, BufferedImage.TYPE_INT_RGB);
-//					Graphics tg = tempBI.getGraphics();
-//					tg.drawImage(bi, difnX, difnY, CWIDTH + difnX, CHEIGHT + difnY, 0, 0, bi.getWidth(), bi.getHeight(), null);
-//					Graphics g = bi.getGraphics();
-//					g.drawImage(tempBI, 0, 0, null);
 					drawFractal(info);
 				}
 			}
@@ -880,18 +887,22 @@ public class Viewer extends JPanel implements Runnable{
 	double xBase, yBase;
 	double zoomDifBase;
 	boolean zoomInProgress;
+	BufferedImage inter;
 	
 	@Override
-	public void paint(Graphics g) {
-		super.paint(g);
-		g.clearRect(0, 0, CWIDTH, CHEIGHT);
+	public void paint(Graphics g2) {
+		super.paint(g2);
+		if(inter == null || inter.getWidth() != WIDTH || inter.getHeight() != HEIGHT) {
+			inter = new BufferedImage(WIDTH, HEIGHT, BufferedImage.TYPE_INT_RGB);
+		}
+		Graphics g = inter.getGraphics();
 		
 		if(dragPressed) {
 			int mX = MouseInfo.getPointerInfo().getLocation().x - this.getLocationOnScreen().x;
 			int mY = MouseInfo.getPointerInfo().getLocation().y - this.getLocationOnScreen().y;
 			int difX = mX - dragX;
 			int difY = mY - dragY;
-			g.drawImage(bi, difX, difY, CWIDTH + difX, CHEIGHT + difY, 0, 0, bi.getWidth(), bi.getHeight(), null);
+			g.drawImage(bi, difX, difY, WIDTH + difX, HEIGHT + difY, 0, 0, bi.getWidth(), bi.getHeight(), null);
 		}else {
 			if(zoomInProgress) {
 				if(Viewer.zoomAnimationProgress == 0) {
@@ -903,8 +914,8 @@ public class Viewer extends JPanel implements Runnable{
 					SizedDouble fromCenterX = SizedDouble.parseSizedDouble(info.getX().subtract(info.getPrevX()));
 					SizedDouble fromCenterY = SizedDouble.parseSizedDouble(info.getY().subtract(info.getPrevY()));
 					
-					xBase = (int) fromCenterX.divide(4).multiply(CWIDTH).divide(info.getPrevZoom()).asDouble();
-					yBase = (int) fromCenterY.divide(4).multiply(CHEIGHT).divide(info.getPrevZoom()).asDouble();
+					xBase = (int) fromCenterX.divide(4).multiply(WIDTH).divide(info.getPrevZoom()).asDouble();
+					yBase = (int) fromCenterY.divide(4).multiply(HEIGHT).divide(info.getPrevZoom()).asDouble();
 					zoomDifBase = (info.getPrevZoom().divide(info.getZoom()).asDouble());
 				}
 			}
@@ -915,7 +926,7 @@ public class Viewer extends JPanel implements Runnable{
 			double xOffBase = -(xBase * Viewer.zoomAnimationProgress);
 			double yOffBase = -(yBase * Viewer.zoomAnimationProgress);
 			((Graphics2D) g).setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BICUBIC);
-			g.drawImage(bi, (int) (-CWIDTH * zoomDif/2 + xOffBase*zoomDifBase), (int) (-CHEIGHT * zoomDif/2 + yOffBase*zoomDifBase), (int) (CWIDTH + CWIDTH * zoomDif/2 + xOffBase*zoomDifBase), (int) (CHEIGHT + CHEIGHT * zoomDif/2 + yOffBase*zoomDifBase), 0, 0, bi.getWidth(), bi.getHeight(), null);
+			g.drawImage(bi, (int) (-WIDTH * zoomDif/2 + xOffBase*zoomDifBase), (int) (-HEIGHT * zoomDif/2 + yOffBase*zoomDifBase), (int) (WIDTH + WIDTH * zoomDif/2 + xOffBase*zoomDifBase), (int) (HEIGHT + HEIGHT * zoomDif/2 + yOffBase*zoomDifBase), 0, 0, bi.getWidth(), bi.getHeight(), null);
 		}
 		
 		if(mousePressed) {
@@ -923,16 +934,18 @@ public class Viewer extends JPanel implements Runnable{
 			int mY = MouseInfo.getPointerInfo().getLocation().y - this.getLocationOnScreen().y;
 			int difX = Math.abs(mX - pressedX);
 			int difY = Math.abs(mY - pressedY);
-			boolean xGreater = (double) difX / CWIDTH > (double) difY / CHEIGHT;
-			g.setColor(new Color(255, 255, 255));
+			boolean xGreater = (double) difX / WIDTH > (double) difY / HEIGHT;
+			g.setColor(Color.WHITE);
 			if(xGreater) {
-				g.drawRect(pressedX - difX, pressedY - difX, (int) (difX * 2), (int) ((double) CHEIGHT / CWIDTH * difX * 2));
+				g.drawRect((pressedX - difX) * view.getViewWidth() / WIDTH, (pressedY - difX) * view.getViewHeight() / HEIGHT, (int) (difX * 2) * view.getViewWidth() / WIDTH, (int) ((double) HEIGHT / WIDTH * difX * 2) * view.getViewHeight() / HEIGHT);
 			}else {
-				g.drawRect(pressedX - difY, pressedY - difY, (int) ((double) CWIDTH / CHEIGHT * difY * 2), (int) (difY * 2));
+				g.drawRect(pressedX - difY, pressedY - difY, (int) ((double) WIDTH / HEIGHT * difY * 2), (int) (difY * 2));
 			}
 		}
 		
 		g.dispose();
+		view.draw(g2, inter);
+		g2.dispose();
 	}
 	
 	static class SaveL implements ActionListener {
