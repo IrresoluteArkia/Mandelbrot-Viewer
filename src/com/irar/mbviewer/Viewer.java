@@ -71,10 +71,10 @@ public class Viewer extends JPanel implements Runnable{
 	public static volatile Thread current = null;
 	public static volatile List<Thread> waitingFR = new ArrayList<>();
 	public static RenderInfo renderInfo = new RenderInfo(instance);
-	public static TextField iterField;
 	public static boolean hist = false;
 	public static List<Palette> palettes = PaletteSaveHandler.getPaletteData();
 	public static StatusBar statusBar;
+	public static DisplayHandler<Integer> iterationDisplay;
 	public static ViewMode view = new WindowedMode();
 	static {
 		try {
@@ -122,7 +122,6 @@ public class Viewer extends JPanel implements Runnable{
 		statusBar = new StatusBar();
 		window.add(statusBar, BorderLayout.SOUTH);
 		JPanel panel1 = new JPanel(new BorderLayout());
-		addIter(panel1);
 		addRes(panel1);
 		window.add(panel1, BorderLayout.EAST);
 		window.pack();
@@ -167,8 +166,8 @@ public class Viewer extends JPanel implements Runnable{
 			MBInfo info1 = MBInfoGetter.getInfo(file);
 			if(info1 != null && info1.wasInitialized()) {
 				info = info1;
-				if(iterField != null) {
-					iterField.setText("" + info.getIterations());
+				if(iterationDisplay != null) {
+					iterationDisplay.display(info.getIterations());
 				}
 				if(info.getPalette() == null) {
 					info.setPalette(palettes.get(0));
@@ -182,8 +181,35 @@ public class Viewer extends JPanel implements Runnable{
 		JMenu fileMenu = new JMenu("File");
 		JMenu viewMenu = new JMenu("View");
 		JMenu paletteMenu = new JMenu("Palette");
+		JMenu iterMenu = new JMenu("Iteration");
 		JMenu toolsMenu = new JMenu("Tools");
 		JMenu helpMenu = new JMenu("Help");
+		
+		JMenuItem iterationView = new JMenuItem("Iterations: " + info.getIterations());
+		iterationDisplay = iter -> {
+			iterationView.setText("Iterations: " + iter);
+		};
+		JMenuItem iterup = new JMenuItem("Double Iterations");
+		JMenuItem iterdown = new JMenuItem("Half Iterations");
+		iterup.addActionListener(new ActionListener() {
+			@Override
+			public void actionPerformed(ActionEvent e) {
+				info.setIterations(Math.max(32, info.getIterations() * 2));
+				info.syncPrev();
+				iterationDisplay.display(info.getIterations());
+				drawFractal(info);
+			}
+		});
+		iterdown.addActionListener(new ActionListener() {
+			@Override
+			public void actionPerformed(ActionEvent e) {
+				info.setIterations(Math.max(32, info.getIterations() / 2));
+				info.syncPrev();
+				iterationDisplay.display(info.getIterations());
+				drawFractal(info);
+			}
+		});
+		
 		
 		JMenuItem openFile = new JMenuItem("Open");
 		openFile.addActionListener(new OpenF());
@@ -297,6 +323,10 @@ public class Viewer extends JPanel implements Runnable{
 		
 		viewMenu.add(fullscreen);
 		
+		iterMenu.add(iterationView);
+		iterMenu.add(iterup);
+		iterMenu.add(iterdown);
+		
 		helpMenu.add(clearCache);
 		
 		toolsMenu.add(autoZoom);
@@ -305,6 +335,7 @@ public class Viewer extends JPanel implements Runnable{
 		menuBar.add(fileMenu);
 		menuBar.add(viewMenu);
 		menuBar.add(paletteMenu);
+		menuBar.add(iterMenu);
 		menuBar.add(toolsMenu);
 		menuBar.add(helpMenu);
 		
@@ -406,47 +437,7 @@ public class Viewer extends JPanel implements Runnable{
 		});
 
 	}
-
-	private static void addIter(JPanel frame) {
-		JPanel panel = new JPanel();
-		panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
-		JPanel panela = new JPanel();
-		panela.setLayout(new BoxLayout(panela, BoxLayout.X_AXIS));
-		Button up = new Button("x2");
-		iterField = new TextField(info.getIterations() + "");
-		iterField.setColumns(6);
-		up.addActionListener(new ActionListener() {
-			@Override
-			public void actionPerformed(ActionEvent e) {
-				info.setIterations(Math.max(32, info.getIterations() * 2));
-				info.syncPrev();
-				iterField.setText("" + info.getIterations());
-				drawFractal(info);
-			}
-		});
-		Button down = new Button("/2");
-		down.addActionListener(new ActionListener() {
-			@Override
-			public void actionPerformed(ActionEvent e) {
-				info.setIterations(Math.max(32, info.getIterations() / 2));
-				info.syncPrev();
-				iterField.setText("" + info.getIterations());
-				drawFractal(info);
-			}
-		});
-		
-		iterField.setMaximumSize(new Dimension(10000, 30));
-		up.setMaximumSize(new Dimension(10000, 30));
-		down.setMaximumSize(new Dimension(10000, 30));
-		
-		panela.add(down);
-		panela.add(iterField);
-		panela.add(up);
-		panel.add(new JLabel("Iterations:"));
-		panel.add(panela);
-		renderInfo.addToPanel(panel);
-		frame.add(panel, BorderLayout.WEST);
-	}
+	
 	static JCheckBox sp;
 	private static void addRes(JPanel frame) {
 		JPanel panelx = new JPanel();
@@ -721,7 +712,7 @@ public class Viewer extends JPanel implements Runnable{
 					helper = new TinyMBHelper();
 				}
 				helper.getSet(bi, info, new ProgressMonitorFactory(renderInfo), info.shouldDoHist() ? new HistogramRenderer() : new IterationRenderer());
-				iterField.setText("" + info.getIterations());
+				iterationDisplay.display(info.getIterations());
 				if(autoZoom) {
 					selectAndAutoZoom(info, helper);
 				}
