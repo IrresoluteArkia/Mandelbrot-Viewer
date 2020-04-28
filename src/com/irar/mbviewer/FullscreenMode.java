@@ -76,7 +76,7 @@ public class FullscreenMode implements ViewMode {
 	private void updateWH(int bwidth, int bheight) {
 		float ratioscreen = (float) swidth/sheight;
 		float ratiob = (float) bwidth/bheight;
-		boolean widthbigger = ratiob > ratioscreen;
+		boolean widthbigger = ratiob < ratioscreen;
 		if(widthbigger) {
 			width = (int) (sheight*ratiob);
 			height = sheight;
