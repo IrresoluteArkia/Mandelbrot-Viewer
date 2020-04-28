@@ -1068,4 +1068,8 @@ public class Viewer extends JPanel implements Runnable{
 		window.pack();
 	}
 
+	public static int getUnusableHeight() {
+		return statusBar.getHeight() + window.getJMenuBar().getHeight();
+	}
+
 }

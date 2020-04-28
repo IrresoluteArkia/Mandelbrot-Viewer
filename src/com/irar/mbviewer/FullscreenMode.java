@@ -21,6 +21,7 @@ public class FullscreenMode implements ViewMode {
 	public FullscreenMode() {
 		swidth = Toolkit.getDefaultToolkit().getScreenSize().width;
 		sheight = Toolkit.getDefaultToolkit().getScreenSize().height;
+		sheight -= Viewer.getUnusableHeight();
 		boolean widthbigger = swidth > sheight;
 		if(widthbigger) {
 			width = sheight;
