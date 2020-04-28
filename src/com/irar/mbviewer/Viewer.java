@@ -240,7 +240,7 @@ public class Viewer extends JPanel implements Runnable{
 				info.setDoHist(false);
 				helper.setRenderer(new IterationRenderer());
 			}
-			helper.recolor(bi, info, new ProgressMonitorFactory(renderInfo));
+			helper.recolor(bi, info, new ProgressMonitorFactory(statusBar));
 		});
 		paletteMenu.add(histB);
 		paletteMenu.addSeparator();
@@ -257,7 +257,7 @@ public class Viewer extends JPanel implements Runnable{
 				}
 				new Thread(() -> {
 					info.setPalette(palettes.get(index));
-					helper.recolor(bi, info, new ProgressMonitorFactory(renderInfo));
+					helper.recolor(bi, info, new ProgressMonitorFactory(statusBar));
 				}).start();
 			}
 		};
@@ -711,7 +711,7 @@ public class Viewer extends JPanel implements Runnable{
 				}else {
 					helper = new TinyMBHelper();
 				}
-				helper.getSet(bi, info, new ProgressMonitorFactory(renderInfo), info.shouldDoHist() ? new HistogramRenderer() : new IterationRenderer());
+				helper.getSet(bi, info, new ProgressMonitorFactory(statusBar), info.shouldDoHist() ? new HistogramRenderer() : new IterationRenderer());
 				iterationDisplay.display(info.getIterations());
 				if(autoZoom) {
 					selectAndAutoZoom(info, helper);

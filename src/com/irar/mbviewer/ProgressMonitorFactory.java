@@ -7,18 +7,18 @@ import javax.swing.JProgressBar;
 
 public class ProgressMonitorFactory implements IProgressMonitorFactory<ProgressMonitor>{
 	
-	private RenderInfo info;
+	private StatusBar info;
 	private List<ProgressMonitor> monitors = new ArrayList<>();
 	private int id = 0;
 	
-	public ProgressMonitorFactory(RenderInfo info) {
-		this.info = info;
+	public ProgressMonitorFactory(StatusBar statusBar) {
+		this.info = statusBar;
 	}
 
 	@Override
 	public ProgressMonitor createNewProgressMonitor() {
 		JProgressBar pBar = new JProgressBar(0, 100);
-		info.progressBars.add(pBar);
+		info.setBar(pBar);
 		info.validate();
 		ProgressMonitor monitor = new ProgressMonitor(pBar, this, id);
 		id++;
@@ -29,7 +29,7 @@ public class ProgressMonitorFactory implements IProgressMonitorFactory<ProgressM
 	@Override
 	public void deleteProgressMonitor(ProgressMonitor monitor) {
 		monitors.remove(monitor);
-		info.progressBars.remove(monitor.getProgressBar());
+		info.removeBar(monitor.getProgressBar());
 		info.validate();
 	}
 
