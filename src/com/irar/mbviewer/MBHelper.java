@@ -8,6 +8,8 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Random;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import com.irar.mbviewer.util.RandomUtil;
 
@@ -65,26 +67,39 @@ public class MBHelper {
 			rPoint = getStartingPoint(info, factory, width, height);
 			approx = getApproximations(rPoint, points, info, width, height, factory);
 		}while(info.getIterations() < approx.skipped * 20);
-		int current = 0;
-		int done = 0;
+		AtomicInteger current = new AtomicInteger(0);
+		AtomicInteger done = new AtomicInteger(0);
+		AtomicBoolean badRef = new AtomicBoolean(false);
 		int end = points.size();
-		for(ZoomPoint point : points) {
+		final ReferencePoint usingRPoint = rPoint;
+		final SeriesApprox usingApprox = approx;
+		final List<ZoomPoint> usingPoints = points;
+		points.parallelStream().forEach(point -> {
+			if(badRef.get()) {
+				return;
+			}
 			if(point.redo) {
 				point.redo = false;
 			}
-			iterations[point.x][point.y] = iterate(info, point, rPoint, approx, getZoomMagnitude(info), samples, width, height, iterations[point.x][point.y]);
+			try {
+				iterations[point.x][point.y] = iterate(info, point, usingRPoint, usingApprox, getZoomMagnitude(info), samples, width, height, iterations[point.x][point.y]);
+			} catch (Exception e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
 			if(point.redo) {
 				repeatPoints.add(point);
 			}else {
-				done++;
+				done.addAndGet(1);
 			}
-			current++;
-			if(isBadReference(current, points.size(), repeatPoints.size())) {
-				repeatPoints = points;
-				break;
+			current.addAndGet(1);
+			if(isBadReference(current.get(), usingPoints.size(), repeatPoints.size())) {
+				repeatPoints.clear();
+				repeatPoints.addAll(usingPoints);
+				badRef.set(true);
 			}
-			monitor.setProgress((float) done / end);
-		}
+			monitor.setProgress((float) done.get() / end);
+		});
 		if(repeatPoints.size() > 0) {
 			rPoint = null;
 			approx = null;
