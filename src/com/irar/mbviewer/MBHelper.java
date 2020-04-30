@@ -87,19 +87,23 @@ public class MBHelper {
 				// TODO Auto-generated catch block
 				e.printStackTrace();
 			}
-			if(point.redo) {
-				repeatPoints.add(point);
-			}else {
-				done.addAndGet(1);
+			if(!badRef.get()) {
+				if(point.redo) {
+					repeatPoints.add(point);
+				}else {
+					done.addAndGet(1);
+				}
+				current.addAndGet(1);
+				if(isBadReference(current.get(), usingPoints.size(), repeatPoints.size())) {
+					badRef.set(true);
+				}
+				monitor.setProgress((float) done.get() / end);
 			}
-			current.addAndGet(1);
-			if(isBadReference(current.get(), usingPoints.size(), repeatPoints.size())) {
-				repeatPoints.clear();
-				repeatPoints.addAll(usingPoints);
-				badRef.set(true);
-			}
-			monitor.setProgress((float) done.get() / end);
 		});
+		if(badRef.get()) {
+			repeatPoints.clear();
+			repeatPoints.addAll(points);
+		}
 		if(repeatPoints.size() > 0) {
 			rPoint = null;
 			approx = null;
@@ -223,22 +227,24 @@ public class MBHelper {
 						e.printStackTrace();
 					}
 				}
-				if(point.redo) {
-					repeatPoints.add(point);
-				}else {
-					done.addAndGet(1);
+				if(!badRef.get()) {
+					if(point.redo) {
+						repeatPoints.add(point);
+					}else {
+						done.addAndGet(1);
+					}
+					current.addAndGet(1);
+					currentR.addAndGet(1);
+					if(isBadReference(currentR.get(), usingPoints.size(), repeatPoints.size())) {
+						badRef.set(true);
+					}
+					progressMonitor.setProgress((float) done.get() / end);
 				}
-				current.addAndGet(1);
-				currentR.addAndGet(1);
-				if(isBadReference(currentR.get(), usingPoints.size(), repeatPoints.size())) {
-					repeatPoints.clear();
-					repeatPoints.addAll(usingPoints);
-					badRef.set(true);
-				}
-				progressMonitor.setProgress((float) done.get() / end);
 			});
-			for(ZoomPoint point : points) {
-			}
+		}
+		if(badRef.get()) {
+			repeatPoints.clear();
+			repeatPoints.addAll(points);
 		}
 		if(repeatPoints.size() > 0) {
 			rPoint = null;
