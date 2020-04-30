@@ -56,7 +56,7 @@ public class MBHelper {
 		ReferencePoint rPoint;
 		List<ZoomPoint> points = getZoomPoints(info, width, height);
 		SeriesApprox approx = null;
-		List<ZoomPoint> repeatPoints = new ArrayList<>();
+		List<ZoomPoint> repeatPoints = new ArrayList<>(points.size());
 		for(ZoomPoint point : points) {
 			point.redo = true;
 		}
@@ -193,36 +193,51 @@ public class MBHelper {
 	private void repeatIteration(MBInfo info, List<ZoomPoint> points, OversampleIteration[][] iterations2, int samples,
 			IProgressMonitorFactory<?> factory, IProgressMonitor progressMonitor, int repeatNum, int width, int height) throws Exception {
 		int end = iterations2.length * iterations2[0].length;
-		int current = end - points.size();
-		int done = current;
-		int currentR = 0;
+		AtomicInteger current = new AtomicInteger(end - points.size());
+		AtomicInteger done = new AtomicInteger(current.get());
+		AtomicInteger currentR = new AtomicInteger(0);
+		AtomicBoolean badRef = new AtomicBoolean(false);
 		if (repeatNum >= 100/* || (remaining < (end / 10000) && repeatNum > 10) */) {
 			return;
 		}
 		ReferencePoint rPoint = getRandomReference(points, info, factory);
 		SeriesApprox approx = getApproximations(rPoint, points, info, width, height, factory);
-		List<ZoomPoint> repeatPoints = new ArrayList<>();
+		final List<ZoomPoint> repeatPoints = new ArrayList<>(points.size());
+		final ReferencePoint usingRPoint = rPoint;
+		final SeriesApprox usingApprox = approx;
+		final List<ZoomPoint> usingPoints = points;
 		if(info.getIterations() < approx.skipped * 10) {
 			info.setIterations(approx.skipped * 10);
-			repeatPoints = points;
+			repeatPoints.addAll(points);
 		}else {
-			for(ZoomPoint point : points) {
+			points.parallelStream().forEach(point -> {
+				if(badRef.get() || point == null) {
+					return;
+				}
 				if(point.redo) {
 					point.redo = false;
-					iterations2[point.x][point.y] = iterate(info, point, rPoint, approx, getZoomMagnitude(info), samples, width, height, iterations2[point.x][point.y]);
+					try {
+						iterations2[point.x][point.y] = iterate(info, point, usingRPoint, usingApprox, getZoomMagnitude(info), samples, width, height, iterations2[point.x][point.y]);
+					} catch (Exception e) {
+						// TODO Auto-generated catch block
+						e.printStackTrace();
+					}
 				}
 				if(point.redo) {
 					repeatPoints.add(point);
 				}else {
-					done++;
+					done.addAndGet(1);
 				}
-				current++;
-				currentR++;
-				if(isBadReference(currentR, points.size(), repeatPoints.size())) {
-					repeatPoints = points;
-					break;
+				current.addAndGet(1);
+				currentR.addAndGet(1);
+				if(isBadReference(currentR.get(), usingPoints.size(), repeatPoints.size())) {
+					repeatPoints.clear();
+					repeatPoints.addAll(usingPoints);
+					badRef.set(true);
 				}
-				progressMonitor.setProgress((float) done / end);
+				progressMonitor.setProgress((float) done.get() / end);
+			});
+			for(ZoomPoint point : points) {
 			}
 		}
 		if(repeatPoints.size() > 0) {
