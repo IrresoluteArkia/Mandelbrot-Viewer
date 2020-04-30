@@ -2,6 +2,7 @@ package com.irar.mbviewer;
 
 import java.awt.Color;
 import java.awt.Graphics;
+import java.awt.GraphicsEnvironment;
 import java.awt.Toolkit;
 import java.awt.image.BufferedImage;
 
@@ -17,10 +18,12 @@ public class FullscreenMode implements ViewMode {
 	private int sheight;
 	private int lastWidth = 0;
 	private int lastHeight = 0;
+	private int x = 0;
+	private int y = 0;
 	
 	public FullscreenMode() {
-		swidth = Toolkit.getDefaultToolkit().getScreenSize().width;
-		sheight = Toolkit.getDefaultToolkit().getScreenSize().height;
+		swidth = GraphicsEnvironment.getLocalGraphicsEnvironment().getMaximumWindowBounds().width;
+		sheight = GraphicsEnvironment.getLocalGraphicsEnvironment().getMaximumWindowBounds().height;
 		sheight -= Viewer.getUnusableHeight();
 		boolean widthbigger = swidth > sheight;
 		if(widthbigger) {
@@ -32,6 +35,8 @@ public class FullscreenMode implements ViewMode {
 		}
 		offsetX = swidth/2 - width/2;
 		offsetY = sheight/2 - height/2;
+		x = GraphicsEnvironment.getLocalGraphicsEnvironment().getMaximumWindowBounds().x;
+		y = GraphicsEnvironment.getLocalGraphicsEnvironment().getMaximumWindowBounds().y;
 	}
 
 	@Override
@@ -41,7 +46,7 @@ public class FullscreenMode implements ViewMode {
 		window.setUndecorated(true);
 		window.setVisible(true);
 		window.pack();
-		window.setLocation(0, 0);
+		window.setLocation(x, y);
 	}
 
 	@Override
