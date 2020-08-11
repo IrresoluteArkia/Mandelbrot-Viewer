@@ -79,15 +79,17 @@ public class MBHelper {
 				if(badRef.get()) {
 					return;
 				}
-				if(point.redo) {
-					point.redo = false;
-				}
-				try {
-					iterations[point.x][point.y] = iterate(info, point, usingRPoint, usingApprox, getZoomMagnitude(info), samples, width, height, iterations[point.x][point.y]);
-				} catch (Exception e) {
-					// TODO Auto-generated catch block
-					e.printStackTrace();
-				}
+			}
+			if(point.redo) {
+				point.redo = false;
+			}
+			try {
+				iterations[point.x][point.y] = iterate(info, point, usingRPoint, usingApprox, getZoomMagnitude(info), samples, width, height, iterations[point.x][point.y]);
+			} catch (Exception e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+			synchronized(badRef) {
 				if(!badRef.get()) {
 					if(point.redo) {
 						repeatPoints.add(point);
@@ -221,15 +223,17 @@ public class MBHelper {
 					if(badRef.get() || point == null) {
 						return;
 					}
-					if(point.redo) {
-						point.redo = false;
-						try {
-							iterations2[point.x][point.y] = iterate(info, point, usingRPoint, usingApprox, getZoomMagnitude(info), samples, width, height, iterations2[point.x][point.y]);
-						} catch (Exception e) {
-							// TODO Auto-generated catch block
-							e.printStackTrace();
-						}
+				}
+				if(point.redo) {
+					point.redo = false;
+					try {
+						iterations2[point.x][point.y] = iterate(info, point, usingRPoint, usingApprox, getZoomMagnitude(info), samples, width, height, iterations2[point.x][point.y]);
+					} catch (Exception e) {
+						// TODO Auto-generated catch block
+						e.printStackTrace();
 					}
+				}
+				synchronized(badRef) {
 					if(!badRef.get()) {
 						if(point.redo) {
 							repeatPoints.add(point);
