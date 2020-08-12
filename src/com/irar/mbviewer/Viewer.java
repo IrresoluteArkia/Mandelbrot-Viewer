@@ -10,6 +10,10 @@ import java.awt.MouseInfo;
 import java.awt.RenderingHints;
 import java.awt.TextField;
 import java.awt.Toolkit;
+import java.awt.datatransfer.DataFlavor;
+import java.awt.dnd.DnDConstants;
+import java.awt.dnd.DropTarget;
+import java.awt.dnd.DropTargetDropEvent;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.event.ItemEvent;
@@ -151,6 +155,33 @@ public class Viewer extends JPanel implements Runnable{
 		
 		initialized = true;
 		drawFractal(info);
+	}
+	
+	public Viewer() {
+		this.setDropTarget(new DropTarget() {
+		    /**
+			 * 
+			 */
+			private static final long serialVersionUID = -1615979291619341165L;
+
+			public synchronized void drop(DropTargetDropEvent evt) {
+		        try {
+		            evt.acceptDrop(DnDConstants.ACTION_COPY);
+		            @SuppressWarnings("unchecked")
+					List<File> droppedFiles = (List<File>)
+		                evt.getTransferable().getTransferData(DataFlavor.javaFileListFlavor);
+		            for (File file : droppedFiles) {
+		                if(file.getName().endsWith(".iaz") && file.exists() && file.isFile()) {
+		                	setFile(file);
+		    				drawFractal(info);
+		                	break;
+		                }
+		            }
+		        } catch (Exception ex) {
+		            ex.printStackTrace();
+		        }
+		    }
+		});
 	}
 	
 	public void setSize(int width, int height) {
