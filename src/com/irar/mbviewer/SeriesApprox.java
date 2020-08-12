@@ -21,7 +21,7 @@ public class SeriesApprox{
 		CN.add(new Complex3(0, 0));
 		int percent = -1;
 		if(power.x != 2 || power.y != 0) {
-			monitor.deleteMonitor();
+//			monitor.deleteMonitor();
 			return;
 		}
 		for(int i = 1; i < rPoint.XN.size(); i++) {
@@ -36,20 +36,20 @@ public class SeriesApprox{
 			if (((BN.get(i).multiply(deltaPow2)).magSqu().multiply(tol)).compareTo((CN.get(i).multiply(deltaPow3)).magSqu()) < 0) {
 				if (i <= 3) {
 					skipped = 0;
-					monitor.deleteMonitor();
+//					monitor.deleteMonitor();
 					return;
 				}
 				else {
 					skipped = (i - 3);
-					monitor.deleteMonitor();
+//					monitor.deleteMonitor();
 					return;
 				}
 			}
-			monitor.setProgress((float) i / rPoint.XN.size());
+//			monitor.setProgress((float) i / rPoint.XN.size());
 			helper.checkShouldKeepRunning();
 		}
 		skipped = 0;
-		monitor.deleteMonitor();
+//		monitor.deleteMonitor();
 	}
 	
 }

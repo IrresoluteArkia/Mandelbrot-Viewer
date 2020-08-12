@@ -52,10 +52,10 @@ public class ReferencePoint{
 			if(c.magSqu() > 10000) {
 				break;
 			}
-			monitor.setProgress((float) i / maxIter);
+//			monitor.setProgress((float) i / maxIter);
 			helper.checkShouldKeepRunning();
 		}
-		monitor.deleteMonitor();
+//		monitor.deleteMonitor();
 	}
 	
 }

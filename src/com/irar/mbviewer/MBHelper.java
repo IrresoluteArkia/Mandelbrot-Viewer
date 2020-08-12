@@ -50,7 +50,6 @@ public class MBHelper {
 	}
 	
 	private OversampleIteration[][] iterate(MBInfo info, int width, int height, int samples, IProgressMonitorFactory<?> factory) throws Exception {
-		IProgressMonitor monitor = factory.createNewProgressMonitor();
 		OversampleIteration[][] iterations = new OversampleIteration[width][height];
 		reusePoints(info, width, height, iterations);
 		ReferencePoint rPoint;
@@ -74,48 +73,153 @@ public class MBHelper {
 		final ReferencePoint usingRPoint = rPoint;
 		final SeriesApprox usingApprox = approx;
 		final List<ZoomPoint> usingPoints = points;
-		points.parallelStream().forEach(point -> {
-			synchronized(badRef) {
-				if(badRef.get()) {
+		iterateParallel(info, points, samples, width, height, iterations, factory);
+//		points.parallelStream().forEach(point -> {
+//			synchronized(badRef) {
+//				if(badRef.get()) {
+//					return;
+//				}
+//			}
+//			if(point.redo) {
+//				point.redo = false;
+//			}
+//			try {
+//				iterations[point.x][point.y] = iterate(info, point, usingRPoint, usingApprox, getZoomMagnitude(info), samples, width, height, iterations[point.x][point.y]);
+//			} catch (Exception e) {
+//				// TODO Auto-generated catch block
+//				e.printStackTrace();
+//			}
+//			synchronized(badRef) {
+//				if(!badRef.get()) {
+//					if(point.redo) {
+//						repeatPoints.add(point);
+//					}else {
+//						done.addAndGet(1);
+//					}
+//					current.addAndGet(1);
+//					if(isBadReference(current.get(), usingPoints.size(), repeatPoints.size())) {
+//						badRef.set(true);
+//					}
+//					monitor.setProgress((float) done.get() / end);
+//				}
+//			}
+//		});
+//		if(badRef.get()) {
+//			repeatPoints.clear();
+//			repeatPoints.addAll(points);
+//		}
+//		if(repeatPoints.size() > 0) {
+//			rPoint = null;
+//			approx = null;
+//			points = null;
+//			repeatIteration(info, repeatPoints, iterations, samples, factory, monitor, 1, width, height);
+//		}
+//		monitor.deleteMonitor();
+		return iterations;
+	}
+
+	private void iterateParallel(MBInfo info, List<ZoomPoint> points, int samples, int width, int height,
+			OversampleIteration[][] iterations, IProgressMonitorFactory<?> factory) {
+		IProgressMonitor monitor = factory.createNewProgressMonitor();
+		int numThreads = Math.max(Runtime.getRuntime().availableProcessors(), 1);
+		AtomicBoolean first = new AtomicBoolean(true);
+		AtomicInteger numDone = new AtomicInteger(0);
+		AtomicInteger max = new AtomicInteger(points.size());
+		List<Thread> threads = new ArrayList<>();
+		for(int i = 0; i < numThreads; i++) {
+			Thread thread = new Thread(() -> {
+				boolean pointsLeft = true;
+				do {
+					boolean firsti = false;
+					synchronized(first) {
+						firsti = first.get();
+						first.set(false);
+					}
+					try {
+						iterateSingleThread(info, points, iterations, width, height, samples, monitor, factory, firsti, numDone, max);
+					} catch (Exception e) {
+						// TODO Auto-generated catch block
+						e.printStackTrace();
+					}
+					synchronized(points) {
+						pointsLeft = points.size() > 0;
+					}
+				}while(pointsLeft);
+			});
+			thread.start();
+			threads.add(thread);
+		}
+		boolean done = false;
+		do {
+			done = true;
+			for(Thread thread : threads) {
+				if(thread.isAlive()) {
+					done = false;
+					break;
+				}
+			}
+			try {
+				Thread.sleep(100);
+			} catch (InterruptedException e) {
+				e.printStackTrace();
+			}
+		}while(!done);
+		monitor.deleteMonitor();
+	}
+
+	private void iterateSingleThread(MBInfo info, List<ZoomPoint> points, OversampleIteration[][] iterations, int width, int height, int samples,
+			IProgressMonitor monitor, IProgressMonitorFactory<?> factory, boolean first, AtomicInteger done, AtomicInteger max) throws Exception {
+		int maxNum = 0;
+		synchronized(max) {
+			maxNum = max.get();
+		}
+		boolean badRef = false;
+		ReferencePoint ref = first ? getStartingPoint(info, factory, width, height) : getRandomReference(points, info, factory);
+		SeriesApprox approx = getApproximations(ref, points, info, height, height, factory);
+		while(!badRef) {
+			ZoomPoint point = null;
+			synchronized(points) {
+				if(points.size() > 0) {
+					point = RandomUtil.pickOne(points);
+					points.remove(point);
+				}else {
 					return;
 				}
 			}
+			if(point == null) {
+				continue;
+			}
+			
+			point.redo = false;
+			OversampleIteration previous = null;
+			synchronized(iterations) {
+				previous = iterations[point.x][point.y];
+			}
+			if(previous == null) {
+				continue;
+			}
+			OversampleIteration iteration = iterate(info, point, ref, approx, getZoomMagnitude(info), samples, width, height, previous);
+			synchronized(iterations) {
+				iterations[point.x][point.y] = iteration;
+			}
+			
 			if(point.redo) {
-				point.redo = false;
-			}
-			try {
-				iterations[point.x][point.y] = iterate(info, point, usingRPoint, usingApprox, getZoomMagnitude(info), samples, width, height, iterations[point.x][point.y]);
-			} catch (Exception e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
-			}
-			synchronized(badRef) {
-				if(!badRef.get()) {
-					if(point.redo) {
-						repeatPoints.add(point);
-					}else {
-						done.addAndGet(1);
+				badRef = true;
+				synchronized(points) {
+					points.add(point);
+				}
+			}else {
+				int numDone = 0;
+				synchronized(done) {
+					numDone = done.addAndGet(1);
+				}
+				if(numDone % 10 == 0) {
+					synchronized(monitor) {
+						monitor.setProgress((float) numDone/maxNum);
 					}
-					current.addAndGet(1);
-					if(isBadReference(current.get(), usingPoints.size(), repeatPoints.size())) {
-						badRef.set(true);
-					}
-					monitor.setProgress((float) done.get() / end);
 				}
 			}
-		});
-		if(badRef.get()) {
-			repeatPoints.clear();
-			repeatPoints.addAll(points);
 		}
-		if(repeatPoints.size() > 0) {
-			rPoint = null;
-			approx = null;
-			points = null;
-			repeatIteration(info, repeatPoints, iterations, samples, factory, monitor, 1, width, height);
-		}
-		monitor.deleteMonitor();
-		return iterations;
 	}
 
 	private void reusePoints(MBInfo info, int width, int height, OversampleIteration[][] newIterations) {
@@ -263,10 +367,13 @@ public class MBHelper {
 	}
 
 	private ReferencePoint getRandomReference(List<ZoomPoint> points, MBInfo info, IProgressMonitorFactory<?> factory) throws Exception {
-		ZoomPoint point = RandomUtil.pickOne(points);
-		points.remove(point);
+		ZoomPoint point = null;
+		synchronized(points) {
+			point = RandomUtil.pickOne(points);
+			points.remove(point);
+		}
 		Complex2 chosenLoc = point.c.produce();
-		ReferencePoint chosen = new ReferencePoint(chosenLoc.x, chosenLoc.y, info.getIterations(), getZoomMagnitude(info), info.getPower(), this, factory.createNewProgressMonitor());
+		ReferencePoint chosen = new ReferencePoint(chosenLoc.x, chosenLoc.y, info.getIterations(), getZoomMagnitude(info), info.getPower(), this, null/*factory.createNewProgressMonitor()*/);
 		APR.add(chosen);
 		return chosen;
 	}
@@ -411,7 +518,7 @@ public class MBHelper {
 			BigDecimal y = info.getY().add(info.getZoom().divide(height / 2).asBigDecimal(zoomMag));
 			return new Complex2(x, y, zoomMag);
 		});
-		return new SeriesApprox(rPoint, testPoint, info.getPower(), this, factory.createNewProgressMonitor());
+		return new SeriesApprox(rPoint, testPoint, info.getPower(), this, null);
 	}
 
 	private List<ZoomPoint> getZoomPoints(MBInfo info, int width, int height) {
@@ -457,7 +564,7 @@ public class MBHelper {
 			return selected;
 		}
 		System.out.println("No relavent reference point found, using center...");
-		ReferencePoint def = new ReferencePoint(info.getX(), info.getY(), info.getIterations(), getZoomMagnitude(info), info.getPower(), this, factory.createNewProgressMonitor());
+		ReferencePoint def = new ReferencePoint(info.getX(), info.getY(), info.getIterations(), getZoomMagnitude(info), info.getPower(), this, null);
 		APR.add(def);
 		return def;
 	}
