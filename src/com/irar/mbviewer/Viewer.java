@@ -27,6 +27,7 @@ import java.io.IOException;
 import java.io.PrintWriter;
 import java.math.BigDecimal;
 import java.net.URL;
+import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -247,8 +248,10 @@ public class Viewer extends JPanel implements Runnable{
 		
 		JMenuItem saveLoc = new JMenuItem("Save Location");
 		JMenuItem saveImage = new JMenuItem("Save Image");
+		JMenuItem saveRaw = new JMenuItem("Save Raw Image Data");
 		saveLoc.addActionListener(new SaveL());
 		saveImage.addActionListener(new SaveP());
+		saveRaw.addActionListener(new SaveR());
 		
 		JCheckBoxMenuItem fullscreen = new JCheckBoxMenuItem("Fullscreen", false);
 		fullscreen.addActionListener(e -> {
@@ -351,6 +354,7 @@ public class Viewer extends JPanel implements Runnable{
 		fileMenu.add(openFile);
 		fileMenu.add(saveLoc);
 		fileMenu.add(saveImage);
+		fileMenu.add(saveRaw);
 		
 		viewMenu.add(fullscreen);
 		
@@ -1060,6 +1064,55 @@ public class Viewer extends JPanel implements Runnable{
 		private void saveFile(File selectedFile) {
 			try {
 				ImageIO.write(bi, "png", selectedFile);
+			} catch (IOException e) {
+				e.printStackTrace();
+			}
+		}
+	}
+	static class SaveR implements ActionListener {
+		public void actionPerformed(ActionEvent e) {
+			JFileChooser c = new JFileChooser();
+			FileNameExtensionFilter txtFilter = new FileNameExtensionFilter("Raw Mandelbrot Image Data (*.rmi)", "rmi");
+	        c.addChoosableFileFilter(txtFilter);
+	        c.setFileFilter(txtFilter);
+			File theDir = new File("export");
+			if (!theDir.exists()) {
+			    System.out.println("creating directory: " + theDir.getName());
+			    boolean result = false;
+			    try{
+			        theDir.mkdir();
+			        result = true;
+			    } 
+			    catch(SecurityException se){
+			    }        
+			    if(result) {    
+			        System.out.println("DIR created");  
+			    }
+			}
+			c.setCurrentDirectory(theDir);
+			int rVal = c.showSaveDialog(window);
+			if (rVal == JFileChooser.APPROVE_OPTION) {
+				if(c.getSelectedFile().getName().endsWith(".rmi")) {
+					saveFile(c.getSelectedFile());
+				}else {
+					c.setSelectedFile(new File(c.getSelectedFile().getPath() + ".rmi"));
+					saveFile(c.getSelectedFile());
+				}
+			}
+			if (rVal == JFileChooser.CANCEL_OPTION) {}
+		}
+
+		private void saveFile(File selectedFile) {
+			try {
+				OversampleIteration[][] iterations = null;
+				if(info.getPower().x == 2 && info.getPower().y == 0) {
+					iterations = MBHelper.iterations;
+				}else {
+					iterations = TinyMBHelper.iterations;
+				}
+				BufferedImage raw = new BufferedImage(bi.getWidth(), bi.getHeight(), BufferedImage.TYPE_INT_ARGB);
+				new RawRenderer().drawIterations(iterations, raw, info);
+				System.out.println(ImageIO.write(raw, "png", selectedFile));
 			} catch (IOException e) {
 				e.printStackTrace();
 			}
