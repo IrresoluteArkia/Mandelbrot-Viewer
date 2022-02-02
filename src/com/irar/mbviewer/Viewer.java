@@ -48,6 +48,28 @@ import javax.swing.UIManager;
 import javax.swing.UnsupportedLookAndFeelException;
 import javax.swing.filechooser.FileNameExtensionFilter;
 
+import com.irar.mbviewer.external.DiscordHandler;
+import com.irar.mbviewer.mandelbrot.Iteration;
+import com.irar.mbviewer.mandelbrot.MBHelper;
+import com.irar.mbviewer.mandelbrot.OversampleIteration;
+import com.irar.mbviewer.mandelbrot.TinyMBHelper;
+import com.irar.mbviewer.mandelbrot.ZoomLoc;
+import com.irar.mbviewer.math.Complex;
+import com.irar.mbviewer.math.Complex2;
+import com.irar.mbviewer.math.SizedDouble;
+import com.irar.mbviewer.render.DisplayHandler;
+import com.irar.mbviewer.render.FullscreenMode;
+import com.irar.mbviewer.render.HistogramRenderer;
+import com.irar.mbviewer.render.IterationRenderer;
+import com.irar.mbviewer.render.RawRenderer;
+import com.irar.mbviewer.render.ViewMode;
+import com.irar.mbviewer.render.WindowedMode;
+import com.irar.mbviewer.util.C2ArrayList;
+import com.irar.mbviewer.util.MBInfo;
+import com.irar.mbviewer.util.MBInfoGetter;
+import com.irar.mbviewer.util.Palette;
+import com.irar.mbviewer.util.PaletteSaveHandler;
+import com.irar.mbviewer.util.ProgressMonitorFactory;
 import com.irar.mbviewer.util.RandomUtil;
 
 import net.arikia.dev.drpc.DiscordEventHandlers;
@@ -734,7 +756,7 @@ public class Viewer extends JPanel implements Runnable{
 	static Thread thread;
 	protected static double blur = 0;
 	protected static boolean shufflePoints = true;
-	protected static MBHelper helper;
+	public static MBHelper helper;
 	public static float zoomAnimationProgress;
 	private static void drawFractal(MBInfo info) {
 		DiscordHandler.createNewPresence(info);

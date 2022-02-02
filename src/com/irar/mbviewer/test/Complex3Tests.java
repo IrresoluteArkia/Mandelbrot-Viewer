@@ -3,8 +3,8 @@ package com.irar.mbviewer.test;
 import java.util.ArrayList;
 import java.util.List;
 
-import com.irar.mbviewer.Complex3;
-import com.irar.mbviewer.SizedDouble;
+import com.irar.mbviewer.math.Complex3;
+import com.irar.mbviewer.math.SizedDouble;
 
 public class Complex3Tests implements ITestHandler {
 

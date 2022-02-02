@@ -9,7 +9,7 @@ import javax.swing.JTextField;
 
 public class RenderInfo {
 
-	JTextField minIter = new JTextField("Uncalculated");
+	public JTextField minIter = new JTextField("Uncalculated");
 	JTextField avgIter = new JTextField("");
 	JTextField maxIter = new JTextField("");
 	JTextField tTime = new JTextField("");

@@ -5,8 +5,8 @@ import java.util.List;
 import java.util.Map.Entry;
 import java.util.Random;
 
-import com.irar.mbviewer.Complex2;
-import com.irar.mbviewer.OversampleIteration;
+import com.irar.mbviewer.mandelbrot.OversampleIteration;
+import com.irar.mbviewer.math.Complex2;
 
 public class RandomUtil {
 

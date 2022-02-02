@@ -3,7 +3,7 @@ package com.irar.mbviewer.test;
 import java.util.ArrayList;
 import java.util.List;
 
-import com.irar.mbviewer.Complex;
+import com.irar.mbviewer.math.Complex;
 
 public class ComplexTests implements ITestHandler {
 
