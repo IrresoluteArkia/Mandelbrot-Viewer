@@ -11,7 +11,7 @@ public class WindowedMode implements ViewMode {
 
 	@Override
 	public void applyMode(JFrame window, Viewer display) {
-		display.setSize(512, 512);
+		display.setSize(Viewer.DEF_WIDTH, Viewer.DEF_HEIGHT);
 		window.dispose();
 		window.setUndecorated(false);
 		window.setVisible(true);
@@ -21,12 +21,12 @@ public class WindowedMode implements ViewMode {
 
 	@Override
 	public int getViewWidth() {
-		return 512;
+		return Viewer.DEF_WIDTH;
 	}
 
 	@Override
 	public int getViewHeight() {
-		return 512;
+		return Viewer.DEF_HEIGHT;
 	}
 
 	@Override
@@ -41,7 +41,7 @@ public class WindowedMode implements ViewMode {
 
 	@Override
 	public void draw(Graphics g, BufferedImage bi) {
-		g.drawImage(bi, 0, 0, 512, 512, null);
+		g.drawImage(bi, 0, 0, Viewer.DEF_WIDTH, Viewer.DEF_HEIGHT, null);
 	}
 
 }

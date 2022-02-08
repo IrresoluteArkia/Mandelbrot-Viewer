@@ -80,7 +80,7 @@ public class StatusBar extends JPanel{
 			}
 		}
 		avg = (int) (workingAvg / iterNum);
-		status1.setText("Iterations observed (average / max) -> " + avg + " / " + max);
+		status1.setText("Iterations observed (average / max) -> " + avg + " / " + max + "  ");
 	}
 
 }

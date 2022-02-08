@@ -86,10 +86,14 @@ public class Viewer extends JPanel implements Runnable{
 	private static final long serialVersionUID = 1L;
 	public static JFrame window;
 	public static Viewer instance = new Viewer();
-	public static int WIDTH = 512;
-	public static int HEIGHT = 512;
-	public static int resW = 512;
-	public static int resH = 512;
+//	public static int WIDTH = 512;
+//	public static int HEIGHT = 512;
+	public static int DEF_WIDTH = Toolkit.getDefaultToolkit().getScreenSize().width * 3/8;
+	public static int DEF_HEIGHT = Toolkit.getDefaultToolkit().getScreenSize().height * 3/8;
+	public static int WIDTH = DEF_WIDTH;
+	public static int HEIGHT = DEF_HEIGHT;
+	public static int resW = WIDTH;
+	public static int resH = HEIGHT;
 	public static volatile BufferedImage bi = new BufferedImage(WIDTH, HEIGHT, BufferedImage.TYPE_INT_RGB);
 	public static MBInfo info = new MBInfo();
 	public static boolean mousePressed = false;
@@ -587,9 +591,9 @@ public class Viewer extends JPanel implements Runnable{
 		dfault.addActionListener(new ActionListener() {
 			@Override
 			public void actionPerformed(ActionEvent e) {
-				resW = 512;
+				resW = DEF_WIDTH;
 				WIDTH = resW;
-				resH = 512;
+				resH = DEF_HEIGHT;
 				HEIGHT = resH;
 				BufferedImage bi = new BufferedImage(resW, resH, BufferedImage.TYPE_INT_RGB);
 				bi.getGraphics().drawImage(Viewer.bi, 0, 0, resW, resH, 0, 0, Viewer.bi.getWidth(), Viewer.bi.getHeight(), null);
@@ -635,8 +639,8 @@ public class Viewer extends JPanel implements Runnable{
 		JTextField height = new JTextField();
 		width.setColumns(7);
 		height.setColumns(7);
-		width.setText(512 + "");
-		height.setText(512 + "");
+		width.setText(DEF_WIDTH + "");
+		height.setText(DEF_HEIGHT + "");
 		Button custom = new Button("Custom:");
 		custom.addActionListener(new ActionListener() {
 			@Override
