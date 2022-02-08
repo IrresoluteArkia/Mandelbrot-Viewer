@@ -56,6 +56,7 @@ public class MBHelper {
 			return;
 		}
 		iterations = allIterations;
+		Viewer.statusBar.iterationData(iterations);
 		Viewer.zoomAnimationProgress = 0;
 	}
 	
