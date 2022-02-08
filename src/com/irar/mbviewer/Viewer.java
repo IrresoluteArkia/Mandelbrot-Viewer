@@ -758,6 +758,7 @@ public class Viewer extends JPanel implements Runnable{
 	protected static boolean shufflePoints = true;
 	public static MBHelper helper;
 	public static float zoomAnimationProgress;
+	public static float zoomAnimationProgressSmoothed;
 	private static void drawFractal(MBInfo info) {
 		DiscordHandler.createNewPresence(info);
 		thread = new Thread(new Runnable(){
@@ -932,7 +933,7 @@ public class Viewer extends JPanel implements Runnable{
 	double zoomDifBase;
 	boolean zoomInProgress;
 	BufferedImage inter;
-	
+	private float lastSmooth;
 	@Override
 	public void paint(Graphics g2) {
 		super.paint(g2);
@@ -950,6 +951,8 @@ public class Viewer extends JPanel implements Runnable{
 		}else {
 			if(zoomInProgress) {
 				if(Viewer.zoomAnimationProgress == 0) {
+					Viewer.zoomAnimationProgressSmoothed = 0;
+					lastSmooth = 0;
 					zoomInProgress = false;
 				}
 			}else {
@@ -963,14 +966,30 @@ public class Viewer extends JPanel implements Runnable{
 					zoomDifBase = (info.getPrevZoom().divide(info.getZoom()).asDouble());
 				}
 			}
+			if(zoomAnimationProgress != zoomAnimationProgressSmoothed) {
+				float zoomDif = zoomAnimationProgress-zoomAnimationProgressSmoothed;
+				float smooth = zoomDif/10;
+				if(lastSmooth != 0 && smooth != lastSmooth) {
+					float smoothDif = lastSmooth - smooth;
+					smooth += smoothDif/10;
+					lastSmooth = smooth;
+				}
+				zoomAnimationProgressSmoothed += smooth;
+			}
+			double zap = (Math.exp(Viewer.zoomAnimationProgressSmoothed)-1) / (Math.exp(1)-1);
 			
-			double zoomDif = (zoomDifBase-1) * Viewer.zoomAnimationProgress;
+			double zoomDif = (zoomDifBase-1) * zap;
 			
 			
-			double xOffBase = -(xBase * Viewer.zoomAnimationProgress);
-			double yOffBase = -(yBase * Viewer.zoomAnimationProgress);
+			double xOffBase = -(xBase * zap);
+			double yOffBase = -(yBase * zap);
 			((Graphics2D) g).setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BICUBIC);
-			g.drawImage(bi, (int) (-WIDTH * zoomDif/2 + xOffBase*zoomDifBase), (int) (-HEIGHT * zoomDif/2 + yOffBase*zoomDifBase), (int) (WIDTH + WIDTH * zoomDif/2 + xOffBase*zoomDifBase), (int) (HEIGHT + HEIGHT * zoomDif/2 + yOffBase*zoomDifBase), 0, 0, bi.getWidth(), bi.getHeight(), null);
+			g.drawImage(bi, 
+					(int) (-WIDTH * zoomDif/2 + xOffBase*zoomDifBase), 
+					(int) (-HEIGHT * zoomDif/2 + yOffBase*zoomDifBase), 
+					(int) (WIDTH + WIDTH * zoomDif/2 + xOffBase*zoomDifBase), 
+					(int) (HEIGHT + HEIGHT * zoomDif/2 + yOffBase*zoomDifBase), 
+					0, 0, bi.getWidth(), bi.getHeight(), null);
 		}
 		
 		if(mousePressed) {
