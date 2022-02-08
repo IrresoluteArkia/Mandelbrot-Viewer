@@ -9,13 +9,14 @@ public class Iteration {
 
 	public final int iterations;
 	public final float partial;
+	public final int skipped;
 	private Complex2 baseLocation;
 	private Complex3 offsetLocation;
 	private int maxIter;
 	
 	private HashMap<String, Double> extraData = new HashMap<>();
 	
-	public Iteration(int iterations, float partial, int maxIter, Complex2 baseLocation, Complex3 offsetLocation) {
+	public Iteration(int iterations, float partial, int maxIter, int skipped, Complex2 baseLocation, Complex3 offsetLocation) {
 		while(partial < 0) {
 			partial += 1;
 			iterations -= 1;
@@ -29,10 +30,11 @@ public class Iteration {
 		this.baseLocation = baseLocation;
 		this.offsetLocation = offsetLocation;
 		this.maxIter = maxIter;
+		this.skipped = skipped;
 	}
 	
-	public Iteration(int iterations, float partial, int maxIter, Complex2 baseLocation, Complex2 actualLocation) {
-		this(iterations, partial, maxIter, baseLocation, calculateOffset(baseLocation, actualLocation));
+	public Iteration(int iterations, float partial, int maxIter, int skipped, Complex2 baseLocation, Complex2 actualLocation) {
+		this(iterations, partial, maxIter, skipped, baseLocation, calculateOffset(baseLocation, actualLocation));
 	}
 	
 	private static Complex3 calculateOffset(Complex2 baseLocation, Complex2 actualLocation) {

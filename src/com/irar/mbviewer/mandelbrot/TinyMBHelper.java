@@ -253,7 +253,7 @@ public class TinyMBHelper extends MBHelper{
 //		    double nu = Math.log( log_zn / Math.log(2) ) / Math.log(2);
 //		    partial = (float) (1 - nu);
 		}
-		Iteration iter = new Iteration(curIter, partial, maxIter, new Complex2(new BigDecimal(0), new BigDecimal(0), 1), new Complex3(c));
+		Iteration iter = new Iteration(curIter, partial, maxIter, 0, new Complex2(new BigDecimal(0), new BigDecimal(0), 1), new Complex3(c));
 		iter.setExtraData(iterData);
 		return iter;
 	}
@@ -302,7 +302,7 @@ public class TinyMBHelper extends MBHelper{
 		    double nu = Math.log( log_zn / Math.log(2) ) / Math.log(2);
 		    partial = (float) (1 - nu);
 		}
-		return new Iteration(curIter, partial, maxIter, rPoint.loc, delta0);
+		return new Iteration(curIter, partial, maxIter, 0, rPoint.loc, delta0);
 	}
 
 	private List<ZoomPoint> getZoomPoints(MBInfo info, int width, int height) {

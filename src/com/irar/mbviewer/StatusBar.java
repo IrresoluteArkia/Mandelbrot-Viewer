@@ -2,6 +2,7 @@ package com.irar.mbviewer;
 
 import java.awt.Color;
 import java.awt.FlowLayout;
+import java.text.NumberFormat;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -66,6 +67,9 @@ public class StatusBar extends JPanel{
 		int max = -200;
 		int avg = 0; 
 		double workingAvg = 0;
+		int maxS = -200;
+		int avgS = 0; 
+		double workingAvgS = 0;
 		int iterNum = 0;
 		for(OversampleIteration[] iterations2 : iterations) {
 			for(OversampleIteration iterations3 : iterations2) {
@@ -76,11 +80,19 @@ public class StatusBar extends JPanel{
 						max = (int) totalIter;
 					}
 					workingAvg += totalIter;
+					totalIter -= iteration.skipped;
+					if(totalIter > maxS) {
+						maxS = (int) totalIter;
+					}
+					workingAvgS += totalIter;
 				}
 			}
 		}
 		avg = (int) (workingAvg / iterNum);
+		avgS = (int) (workingAvgS / iterNum);
 		status1.setText("Iterations observed (average / max) -> " + avg + " / " + max + "  ");
+		status2.setText("Iterations calculated -> " + avgS + " / " + maxS + 
+				"  (" + NumberFormat.getPercentInstance().format((float) avgS / avg) + " of observed)");
 	}
 
 }
