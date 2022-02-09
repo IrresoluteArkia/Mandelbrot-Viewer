@@ -88,8 +88,10 @@ public class Viewer extends JPanel implements Runnable{
 	public static Viewer instance = new Viewer();
 //	public static int WIDTH = 512;
 //	public static int HEIGHT = 512;
-	public static int DEF_WIDTH = Toolkit.getDefaultToolkit().getScreenSize().width * 3/8;
-	public static int DEF_HEIGHT = Toolkit.getDefaultToolkit().getScreenSize().height * 3/8;
+	public static int SCR_WIDTH = Toolkit.getDefaultToolkit().getScreenSize().width;
+	public static int SCR_HEIGHT = Toolkit.getDefaultToolkit().getScreenSize().height;
+	public static int DEF_WIDTH = SCR_WIDTH * 3/8;
+	public static int DEF_HEIGHT = SCR_HEIGHT * 3/8;
 	public static int WIDTH = DEF_WIDTH;
 	public static int HEIGHT = DEF_HEIGHT;
 	public static int resW = WIDTH;
@@ -153,7 +155,7 @@ public class Viewer extends JPanel implements Runnable{
 		statusBar = new StatusBar();
 		window.add(statusBar, BorderLayout.SOUTH);
 		JPanel panel1 = new JPanel(new BorderLayout());
-		addRes(panel1);
+//		addRes(panel1);
 		window.add(panel1, BorderLayout.EAST);
 		window.pack();
 		window.setResizable(false);
@@ -330,6 +332,63 @@ public class Viewer extends JPanel implements Runnable{
 			pButtons.add(pb);
 		}
 		renderingMenu.add(paletteSubMenu);
+		JMenu resolutionSubMenu = new JMenu("Resolution");
+		List<JCheckBoxMenuItem> rButtons = new ArrayList<>();
+		JMenuItem resDisplay = new JMenuItem(resW + " x " + resH);
+		resolutionSubMenu.add(resDisplay);
+		ActionListener b = new ActionListener() {
+			@Override
+			public void actionPerformed(ActionEvent e) {
+				String[] resData = e.getActionCommand().split("x");
+				resW = Integer.parseInt(resData[0]);
+				WIDTH = resW;
+				resH = Integer.parseInt(resData[1]);
+				HEIGHT = resH;
+				int index = Integer.parseInt(resData[2]);
+				if(rButtons.get(index).isSelected()) {
+					for(JCheckBoxMenuItem cbi : rButtons) {
+						cbi.setSelected(false);
+					}
+					rButtons.get(index).setSelected(true);
+					BufferedImage bi = new BufferedImage(resW, resH, BufferedImage.TYPE_INT_RGB);
+					bi.getGraphics().drawImage(Viewer.bi, 0, 0, resW, resH, 0, 0, Viewer.bi.getWidth(), Viewer.bi.getHeight(), null);
+					Viewer.bi = bi;
+					resDisplay.setText(resW + " x " + resH);
+					info.syncPrev();
+					drawFractal(info);
+				}
+			}			
+		};
+		String[][] resolutionsData = new String[][] {
+			new String[] {"Full Screen Resolution", (SCR_WIDTH) + "x" + (SCR_HEIGHT), "false"},
+			new String[] {"7/8 Screen Resolution", (SCR_WIDTH*7/8) + "x" + (SCR_HEIGHT*7/8), "false"},
+			new String[] {"3/4 Screen Resolution", (SCR_WIDTH*3/4) + "x" + (SCR_HEIGHT*3/4), "false"},
+			new String[] {"5/8 Screen Resolution", (SCR_WIDTH*5/8) + "x" + (SCR_HEIGHT*5/8), "false"},
+			new String[] {"1/2 Screen Resolution", (SCR_WIDTH*1/2) + "x" + (SCR_HEIGHT*1/2), "false"},
+			new String[] {"3/8 Screen Resolution", (SCR_WIDTH*3/8) + "x" + (SCR_HEIGHT*3/8), "true"},
+			new String[] {"1/4 Screen Resolution", (SCR_WIDTH*1/4) + "x" + (SCR_HEIGHT*1/4), "false"},
+			new String[] {"1/8 Screen Resolution", (SCR_WIDTH*1/8) + "x" + (SCR_HEIGHT*1/8), "false"},
+		};
+		for(String[] resolutionData : resolutionsData) {
+			JCheckBoxMenuItem curRes = new JCheckBoxMenuItem(resolutionData[0], Boolean.parseBoolean(resolutionData[2]));
+			curRes.setActionCommand(resolutionData[1] + "x" + rButtons.size());
+			curRes.addActionListener(b);
+			rButtons.add(curRes);
+			resolutionSubMenu.add(curRes);
+		}
+		JMenuItem customRes = new JMenuItem("Custom Resolution (WIP)");
+		customRes.setEnabled(false);
+		resolutionSubMenu.add(customRes);
+		//TODO: Finish Custom Resolution Selector
+		renderingMenu.add(resolutionSubMenu);
+		JMenuItem oversample = new JMenuItem("Oversample (WIP)");
+		oversample.setEnabled(false);
+		renderingMenu.add(oversample);
+		//TODO: Finish porting Oversample over to JMenu
+		JMenuItem blur = new JMenuItem("Blur (WIP)");
+		blur.setEnabled(false);
+		renderingMenu.add(blur);
+		//TODO: Finish porting Blur over to JMenu
 		
 		JMenuItem clearCache = new JMenuItem("Clear Cache");
 		clearCache.addActionListener((act) -> {
@@ -502,6 +561,11 @@ public class Viewer extends JPanel implements Runnable{
 	}
 	
 	static JCheckBox sp;
+	/**
+	 * Being phased out in favor of JMenu
+	 * @param frame
+	 */
+	@Deprecated
 	private static void addRes(JPanel frame) {
 		JPanel panelx = new JPanel();
 		panelx.setLayout(new BoxLayout(panelx, BoxLayout.Y_AXIS));
