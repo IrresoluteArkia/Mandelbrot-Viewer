@@ -238,7 +238,7 @@ public class Viewer extends JPanel implements Runnable{
 		JMenuBar menuBar = new JMenuBar();
 		JMenu fileMenu = new JMenu("File");
 		JMenu viewMenu = new JMenu("View");
-		JMenu paletteMenu = new JMenu("Palette");
+		JMenu renderingMenu = new JMenu("Rendering");
 		JMenu iterMenu = new JMenu("Iteration");
 		JMenu toolsMenu = new JMenu("Tools");
 		JMenu helpMenu = new JMenu("Help");
@@ -302,8 +302,7 @@ public class Viewer extends JPanel implements Runnable{
 			}
 			helper.recolor(bi, info, new ProgressMonitorFactory(statusBar));
 		});
-		paletteMenu.add(histB);
-		paletteMenu.addSeparator();
+		renderingMenu.add(histB);
 		ActionListener a = new ActionListener() {
 			@Override
 			public void actionPerformed(ActionEvent e) {
@@ -321,13 +320,16 @@ public class Viewer extends JPanel implements Runnable{
 				}).start();
 			}
 		};
+		
+		JMenu paletteSubMenu = new JMenu("Palette");
 		for(int i = 0; i < palettes.size(); i++) {
 			JCheckBoxMenuItem pb = new JCheckBoxMenuItem(palettes.get(i).name);
 			pb.setActionCommand(i + "");
 			pb.addActionListener(a);
-			paletteMenu.add(pb);
+			paletteSubMenu.add(pb);
 			pButtons.add(pb);
 		}
+		renderingMenu.add(paletteSubMenu);
 		
 		JMenuItem clearCache = new JMenuItem("Clear Cache");
 		clearCache.addActionListener((act) -> {
@@ -395,7 +397,7 @@ public class Viewer extends JPanel implements Runnable{
 		
 		menuBar.add(fileMenu);
 		menuBar.add(viewMenu);
-		menuBar.add(paletteMenu);
+		menuBar.add(renderingMenu);
 		menuBar.add(iterMenu);
 		menuBar.add(toolsMenu);
 		menuBar.add(helpMenu);
