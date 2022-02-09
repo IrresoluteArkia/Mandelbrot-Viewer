@@ -7,6 +7,7 @@ import java.awt.Dimension;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
 import java.awt.MouseInfo;
+import java.awt.Rectangle;
 import java.awt.RenderingHints;
 import java.awt.TextField;
 import java.awt.Toolkit;
@@ -65,6 +66,7 @@ import com.irar.mbviewer.render.RawRenderer;
 import com.irar.mbviewer.render.ViewMode;
 import com.irar.mbviewer.render.WindowedMode;
 import com.irar.mbviewer.util.C2ArrayList;
+import com.irar.mbviewer.util.InvertComposite;
 import com.irar.mbviewer.util.MBInfo;
 import com.irar.mbviewer.util.MBInfoGetter;
 import com.irar.mbviewer.util.Palette;
@@ -1071,11 +1073,14 @@ public class Viewer extends JPanel implements Runnable{
 			int difY = Math.abs(mY - pressedY);
 			boolean xGreater = (double) difX / WIDTH > (double) difY / HEIGHT;
 			g.setColor(Color.WHITE);
+			Rectangle rect;
 			if(xGreater) {
-				g.drawRect(pressedX - difX, pressedY - (difX*HEIGHT/WIDTH), (int) (difX * 2), (int) ((double) HEIGHT / WIDTH * difX * 2));
+				rect = new Rectangle(pressedX - difX, pressedY - (difX*HEIGHT/WIDTH), (int) (difX * 2), (int) ((double) HEIGHT / WIDTH * difX * 2));
 			}else {
-				g.drawRect(pressedX - (difY*WIDTH/HEIGHT), pressedY - difY, (int) ((double) WIDTH / HEIGHT * difY * 2), (int) (difY * 2));
+				rect = new Rectangle(pressedX - (difY*WIDTH/HEIGHT), pressedY - difY, (int) ((double) WIDTH / HEIGHT * difY * 2), (int) (difY * 2));
 			}
+			((Graphics2D) g).setComposite(new InvertComposite());
+			((Graphics2D) g).draw(rect);
 		}
 		
 		g.dispose();
