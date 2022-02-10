@@ -39,6 +39,7 @@ public class MBHelper {
 		OversampleIteration[][] allIterations = null;
 		try {
 			allIterations = iterate(info, width, height, oversample, progressMonitorFactory);
+			interpolateEmpty(allIterations);
 		}catch(Exception e) {
 			interrupted = true;
 			progressMonitorFactory.deleteAllMonitors();
@@ -60,6 +61,67 @@ public class MBHelper {
 		Viewer.zoomAnimationProgress = 0;
 	}
 	
+	/**
+	 * Fill in the gaps in the generated set by substituting neighboring points. 
+	 * At normal resolutions, the result should be indistinguishable from normal
+	 * generation. This function assumes that the parameter containing the 
+	 * iterations is a continuous sample of the set, and that the gaps are not
+	 * too big, as the larger the gap, the less reliable this form of data
+	 * interpolation will be.
+	 * @param allIterations
+	 */
+	private void interpolateEmpty(OversampleIteration[][] allIterations) {
+		List<Object[]> empty = new ArrayList<>();
+		int width = allIterations.length;
+		for(int x = 0; x < width; x++) {
+			int height = allIterations[x].length;
+			for(int y = 0; y < height; y++) {
+				if(allIterations[x][y].getIterations().size() == 0) {
+					empty.add(new Object[] {allIterations[x][y], x, y});
+				}
+			}
+		}
+		
+		while(empty.size() > 0) {
+			List<Object[]> newEmpty = new ArrayList<>();
+			for(Object[] data : empty) {
+				OversampleIteration oi = (OversampleIteration) data[0];
+				int x = (int) data[1];
+				int y = (int) data[2];
+				int[][] nListLoc = new int[][] {
+					new int[] {0, 1},
+					new int[] {0, -1},
+					new int[] {1, 0},
+					new int[] {-1, 0}
+				};
+				List<OversampleIteration> nList = new ArrayList<>();
+				// get valid neighbors
+				for(int i = 0; i < nListLoc.length; i++) {
+					// check bounds
+					if(nListLoc[i][0]+x >= 0 && nListLoc[i][1]+y >= 0 && nListLoc[i][0]+x < width && nListLoc[i][1]+y < allIterations[nListLoc[i][0]+x].length) {
+						OversampleIteration neighbor = allIterations[nListLoc[i][0]+x][nListLoc[i][1]+y];
+						// check if neighbor is empty
+						if(neighbor.getIterations().size() > 0) {
+							nList.add(neighbor);
+						}
+					}
+				}
+				if(nList.size() == 0) {
+					newEmpty.add(data);
+				}else {
+					OversampleIteration fakeIter = new OversampleIteration();
+					for(OversampleIteration neighbor : nList) {
+						for(Iteration iter : neighbor.getIterations()) {
+							fakeIter.addIteration(new Iteration(iter.iterations, iter.partial, iter.getMaxIter(), iter.skipped, iter.getBaseLocation(), iter.getOffsetLocation()));
+						}
+					}
+					allIterations[x][y] = fakeIter;
+				}
+			}
+			empty = newEmpty;
+		}
+	}
+
 	private OversampleIteration[][] iterate(MBInfo info, int width, int height, int samples, IProgressMonitorFactory<?> factory) throws Exception {
 		IProgressMonitor monitor = factory.createNewProgressMonitor();
 		OversampleIteration[][] iterations = new OversampleIteration[width][height];

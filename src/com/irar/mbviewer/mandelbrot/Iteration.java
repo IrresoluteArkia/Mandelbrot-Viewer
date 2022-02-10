@@ -59,6 +59,14 @@ public class Iteration {
 		return new Complex2(offsetLocation, baseLocation.getScale()).add(baseLocation);
 	}
 
+	public Complex2 getBaseLocation() {
+		return baseLocation;
+	}
+
+	public Complex3 getOffsetLocation() {
+		return offsetLocation;
+	}
+
 	public int getMaxIter() {
 		return this.maxIter;
 	}
